@@ -1,0 +1,23 @@
+{
+  "name": "insight-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "轻量级前端监控与性能分析平台（自研学习版 Sentry）",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "sdk:dev": "pnpm --filter @insight/sdk dev",
+    "sdk:build": "pnpm --filter @insight/sdk build",
+    "sdk:test": "pnpm --filter @insight/sdk test",
+    "sdk:typecheck": "pnpm --filter @insight/sdk typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

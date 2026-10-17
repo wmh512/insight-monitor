@@ -1,0 +1,24 @@
+{
+  "name": "@insight/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/insight.umd.js",
+  "module": "./dist/insight.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/insight.es.js",
+      "require": "./dist/insight.umd.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}
