@@ -1,19 +1,29 @@
-import type { InsightOptions } from './types'
+import { setOptions } from './config'
+import { startErrorCapture } from './core/error'
+import type { InsightOptions, ReportData } from './types'
 
 export const SDK_VERSION = '0.1.0'
 
 /**
- * SDK 入口（当前为 Phase 0 占位实现）
- *
- * W1 起依次接入：
- *  - core/error.ts        三类错误捕获
- *  - core/performance.ts  性能指标采集
- *  - report/              上报队列与传输
+ * W1 临时消费者：把捕获到的数据打到控制台
+ * W2 起替换为上报队列（批量 + sendBeacon + 失败重发）
  */
+function debugConsumer(data: ReportData): void {
+  console.info('[insight-sdk] 错误数据就绪（W2 起进入上报队列）:', data)
+}
+
 export function init(options: InsightOptions): void {
   if (!options.projectId || !options.reportUrl) {
     console.error('[insight-sdk] init 缺少必填参数: projectId / reportUrl')
     return
   }
-  console.info(`[insight-sdk] v${SDK_VERSION} 占位实现已加载`, options.projectId)
+  setOptions(options)
+  startErrorCapture(debugConsumer)
+  console.info(`[insight-sdk] v${SDK_VERSION} 初始化完成`, options.projectId)
 }
+
+// 工具函数导出，便于按需使用与测试
+export { cyrb53 } from './utils/hash'
+export { collectDeviceInfo } from './utils/device'
+export { getVisitorId } from './utils/uuid'
+export { injectVueErrorHandler } from './core/error'

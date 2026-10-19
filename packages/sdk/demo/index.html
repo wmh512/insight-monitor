@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Insight SDK Demo · 错误捕获验证</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    button { margin: 4px; padding: 8px 14px; cursor: pointer; }
+    .tip { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Insight SDK · 错误捕获 Demo</h1>
+  <p class="tip">点击按钮制造错误，打开浏览器控制台（F12）查看 SDK 捕获到的数据结构。</p>
+
+  <button onclick="triggerJsError()">JS 运行时错误</button>
+  <button onclick="triggerPromiseError()">Promise 未处理拒绝</button>
+  <button onclick="triggerResourceError()">资源加载失败</button>
+  <button onclick="triggerVueLikeError()">模拟 Vue 错误</button>
+
+  <!-- 使用构建产物：先执行 pnpm sdk:build 生成 dist/insight.umd.js -->
+  <script src="../dist/insight.umd.js"></script>
+  <script>
+    function triggerJsError() {
+      const obj = undefined
+      obj.foo.bar // TypeError: Cannot read properties of undefined
+    }
+    function triggerPromiseError() {
+      Promise.reject(new Error('unhandled rejection!'))
+    }
+    function triggerResourceError() {
+      const img = new Image()
+      img.src = 'https://example.com/definitely-not-exists-' + Date.now() + '.png'
+      document.body.appendChild(img)
+    }
+    function triggerVueLikeError() {
+      const fakeApp = { config: {} }
+      window.InsightSDK.injectVueErrorHandler(fakeApp)
+      fakeApp.config.errorHandler(new Error('render failed'), null, 'render')
+    }
+  </script>
+  <script>
+    window.InsightSDK.init({
+      projectId: 'demo_project_key_001',
+      reportUrl: 'http://localhost:3000/api/report',
+      debug: true,
+    })
+  </script>
+</body>
+</html>
