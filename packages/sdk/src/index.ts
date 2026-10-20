@@ -1,15 +1,17 @@
 import { setOptions } from './config'
 import { startErrorCapture } from './core/error'
+import { startPerformanceCapture } from './core/performance'
 import type { InsightOptions, ReportData } from './types'
 
 export const SDK_VERSION = '0.1.0'
 
 /**
- * W1 临时消费者：把捕获到的数据打到控制台
+ * W1 临时消费者：把采集到的数据打到控制台
  * W2 起替换为上报队列（批量 + sendBeacon + 失败重发）
  */
 function debugConsumer(data: ReportData): void {
-  console.info('[insight-sdk] 错误数据就绪（W2 起进入上报队列）:', data)
+  const label = data.type === 'error' ? '错误' : '性能'
+  console.info(`[insight-sdk] ${label}数据就绪（W2 起进入上报队列）:`, data)
 }
 
 export function init(options: InsightOptions): void {
@@ -19,6 +21,7 @@ export function init(options: InsightOptions): void {
   }
   setOptions(options)
   startErrorCapture(debugConsumer)
+  startPerformanceCapture(debugConsumer)
   console.info(`[insight-sdk] v${SDK_VERSION} 初始化完成`, options.projectId)
 }
 

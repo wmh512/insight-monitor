@@ -1,8 +1,9 @@
 import type { ErrorInfo, ErrorKind, ReportData } from '../types'
-import { getOptions, isDebug } from '../config'
+import { getOptions } from '../config'
 import { cyrb53 } from '../utils/hash'
 import { collectDeviceInfo } from '../utils/device'
 import { getVisitorId } from '../utils/uuid'
+import { guard } from '../utils/safe'
 
 /** 错误数据就绪回调（W2 起由上报队列消费） */
 export type ErrorListener = (data: ReportData) => void
@@ -141,15 +142,6 @@ function buildReportData(error: ErrorInfo): ReportData {
     visitorId: getVisitorId(),
     device: collectDeviceInfo(),
     error,
-  }
-}
-
-/** SDK 自我保护：捕获逻辑自身出错必须静默，绝不影响宿主页面 */
-function guard(fn: () => void): void {
-  try {
-    fn()
-  } catch (e) {
-    if (isDebug()) console.error('[insight-sdk] 捕获逻辑异常（已静默）:', e)
   }
 }
 

@@ -31,16 +31,17 @@
 
 | 模块 | 职责 | 状态 |
 |---|---|---|
-| src/index.ts | 入口 init()，模块串联 | 占位 |
-| src/types.ts | 数据协议（契约） | 已定稿 |
-| core/error.ts | 三类错误捕获 + 指纹 | W1 |
-| core/performance.ts | FP/FCP/LCP 采集 | W2 |
+| src/index.ts | 入口 init()，模块串联 | ✅ 已完成 |
+| src/types.ts | 数据协议（契约） | ✅ 已定稿 |
+| core/error.ts | 三类错误捕获 + 指纹 | ✅ 已完成 |
+| core/performance.ts | FP/FCP/LCP 采集 | ✅ 已完成 |
 | core/blank.ts | 白屏检测 | P2 |
 | report/queue.ts | 上报队列（批量/重试/采样） | W2 |
 | report/transport.ts | sendBeacon / fetch 传输 | W2 |
-| utils/hash.ts | cyrb53 指纹 | W1 |
-| utils/device.ts | UA/屏幕/环境 | W1 |
-| utils/uuid.ts | visitorId | W1 |
+| utils/hash.ts | cyrb53 指纹 | ✅ 已完成 |
+| utils/device.ts | UA/屏幕/环境 | ✅ 已完成 |
+| utils/uuid.ts | visitorId | ✅ 已完成 |
+| utils/safe.ts | guard 保护 + debugLog | ✅ 已完成 |
 
 ### 2.2 服务端（packages/server）— W4 开工
 

@@ -11,7 +11,10 @@
 </head>
 <body>
   <h1>Insight SDK · 错误捕获 Demo</h1>
-  <p class="tip">点击按钮制造错误，打开浏览器控制台（F12）查看 SDK 捕获到的数据结构。</p>
+  <p class="tip">
+    点击按钮制造错误，打开浏览器控制台（F12）查看 SDK 捕获到的数据结构。<br />
+    性能指标（FP / FCP / LCP）会在<strong>切走该标签页</strong>时上报——点完按钮后切换到别的窗口再切回来，控制台可见性能数据。
+  </p>
 
   <button onclick="triggerJsError()">JS 运行时错误</button>
   <button onclick="triggerPromiseError()">Promise 未处理拒绝</button>
