@@ -56,16 +56,33 @@ export function flush(): void {
   const batch = queue
   queue = []
 
-  sendReport(batch).then((ok) => {
-    if (!ok) {
-      // 发送失败：整批存 localStorage，等下次启动补发
-      saveFailed(batch)
-      debugLog(`本批 ${batch.length} 条发送失败，已暂存，等待下次补发`)
-    } else {
-      debugLog(`本批 ${batch.length} 条发送成功`)
-    }
+  try {
+    sendReport(batch)
+      .then((ok) => {
+        if (!ok) {
+          // 发送失败：整批存 localStorage，等下次启动补发
+          saveFailed(batch)
+          debugLog(`本批 ${batch.length} 条发送失败，已暂存，等待下次补发`)
+        } else {
+          debugLog(`本批 ${batch.length} 条发送成功`)
+        }
+      })
+      .catch(() => {
+        // 防御：sendReport 的 Promise 内部异常（正常不会走到，兜底）
+        saveFailed(batch)
+        debugLog(`本批 ${batch.length} 条发送异常，已暂存`)
+      })
+      .finally(() => {
+        // 无论成败必须解锁，否则队列永久瘫痪
+        flushing = false
+      })
+  } catch {
+    // 防御：sendReport 同步抛异常（如 JSON.stringify 遇循环引用）时，
+    // .then 根本没挂上，必须在这里手动兜底 + 解锁
+    saveFailed(batch)
     flushing = false
-  })
+    debugLog(`本批 ${batch.length} 条同步异常，已暂存并解锁`)
+  }
 }
 
 /**

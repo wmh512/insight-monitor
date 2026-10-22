@@ -152,4 +152,29 @@ describe('report/queue 上报队列', () => {
     await flushPromises()
     expect(fetchMock).not.toHaveBeenCalled() // 没有可补发的数据
   })
+
+  it('sendReport 同步抛异常时队列不卡死（R-01 异常防护回归）', async () => {
+    // 让 fetch 同步炸（不是返回失败的 Promise，是直接 throw）——
+    // 模拟 JSON.stringify 遇循环引用这类“没出门就倒下”的情况
+    fetchMock.mockImplementation(() => {
+      throw new Error('sync boom')
+    })
+
+    queueModule.add(makeData())
+    queueModule.add(makeData())
+    queueModule.add(makeData())
+    await flushPromises()
+
+    // ① 数据被兜底暂存，没丢
+    const stored = JSON.parse(localStorage.getItem('insight_failed_reports') ?? '[]')
+    expect(stored).toHaveLength(3)
+
+    // ② 队列已解锁：恢复正常后还能继续发（若 flushing 卡死，这里永远只有 1 次）
+    fetchMock.mockImplementation(() => Promise.resolve({}))
+    queueModule.add(makeData())
+    queueModule.add(makeData())
+    queueModule.add(makeData())
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 })
