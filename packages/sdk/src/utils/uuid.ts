@@ -1,7 +1,7 @@
 /**
  * 访客唯一标识（visitorId）
  *
- * 设计决策（面试点）：
+ * 设计决策：
  * - 存 localStorage：同一浏览器多次访问视为同一访客，是 UV 统计的基础
  * - 不用 cookie：避免随请求自动上传，且受三方 Cookie 策略影响
  * - crypto.randomUUID 优先；http 环境或旧浏览器下降级到随机串

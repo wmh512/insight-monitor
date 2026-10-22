@@ -22,7 +22,7 @@ let latest: PerfMetrics = { FP: 0, FCP: 0, LCP: 0 }
  * - FCP First Contentful Paint 首次内容绘制（出现第一个文字/图片）
  * - LCP Largest Contentful Paint 最大内容绘制（主内容渲染完成）
  *
- * 两个关键设计（面试点）：
+ * 两个关键设计：
  * 1. buffered: true —— SDK 是后加载的，FP/FCP 往往已经发生过了。
  *    buffered 让浏览器把历史条目补发出来，否则永远采不到。
  * 2. LCP 取最后一次 —— LCP 在页面加载过程中会触发多次

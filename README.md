@@ -6,8 +6,8 @@
 |---|---|
 | 开工日期 | 2026-10-18 |
 | 计划完工 | 2027-01-17 |
-| 作者 | wmh512 |
-| 用途 | 2027 春招主攻项目 / 个人项目真实监控 |
+| 作者 | 王铭赫（wmh512） |
+| 用途 | 个人项目监控 + 前端工程全链路实践 |
 
 ## 这是什么
 
@@ -38,7 +38,7 @@ insight-monitor/
 - [ ] Phase 2 服务端：Koa2 + MySQL + 聚合查询 + JWT（W4-W5）
 - [ ] Phase 3 管理后台：Vue3 + TS + ECharts（W6-W8）
 - [ ] Phase 4 真实数据与线上部署（W9-W10）
-- [ ] Phase 5 沉淀与面试准备（W11-W12）
+- [ ] Phase 5 项目沉淀与分享（W11-W12）
 
 ## 文档索引
 
@@ -47,8 +47,8 @@ insight-monitor/
 | [docs/PRD.md](docs/PRD.md) | 需求文档：功能清单、非功能指标、验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构设计与模块职责 |
 | [docs/schema.sql](docs/schema.sql) | 数据库表结构 |
-| [docs/BENCHMARK.md](docs/BENCHMARK.md) | 性能基准记录（简历数字的唯一来源） |
-| [docs/问题日志.md](docs/问题日志.md) | 问题排查记录（面试故事的唯一来源） |
+| [docs/BENCHMARK.md](docs/BENCHMARK.md) | 性能基准记录（项目数据的唯一来源） |
+| [docs/问题日志.md](docs/问题日志.md) | 问题排查记录（经验复盘的来源） |
 
 ## Git 提交规范
 

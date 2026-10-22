@@ -96,7 +96,7 @@ function emit(kind: ErrorKind, message: string, stack: string, resourceUrl?: str
 /**
  * 指纹输入 = message + 堆栈前 3 帧
  *
- * 为什么只取前 3 帧（面试点）：
+ * 为什么只取前 3 帧：
  * - 行号会随代码热修复漂移，取完整堆栈会让同一错误指纹不断变化，聚合失效
  * - 完全去掉堆栈又会让不同来源的同类 message 混为一个 issue
  * - 前 3 帧是稳定性与区分度的平衡点
