@@ -36,8 +36,8 @@
 | core/error.ts | 三类错误捕获 + 指纹 | ✅ 已完成 |
 | core/performance.ts | FP/FCP/LCP 采集 | ✅ 已完成 |
 | core/blank.ts | 白屏检测 | P2 |
-| report/queue.ts | 上报队列（批量/重试/采样） | W2 |
-| report/transport.ts | sendBeacon / fetch 传输 | W2 |
+| report/queue.ts | 上报队列（批量/失败重发/采样率） | ✅ 已完成 |
+| report/transport.ts | sendBeacon / fetch 传输 | ✅ 已完成 |
 | utils/hash.ts | cyrb53 指纹 | ✅ 已完成 |
 | utils/device.ts | UA/屏幕/环境 | ✅ 已完成 |
 | utils/uuid.ts | visitorId | ✅ 已完成 |
@@ -84,4 +84,4 @@ GROUP BY fingerprint → 列表展示 count/last_seen → 点击按 fingerprint 
 | 上报 | sendBeacon 优先 | 页面卸载时可靠投递 |
 | 去重 | cyrb53 指纹 | 零依赖、速度足够 |
 | 服务端 | Koa2 | 轻量、中间件机制清晰 |
-| 后台 | Vue3 + TS | 与求职技术栈一致 |
+| 后台 | Vue3 + TS | 与前端主流技术栈一致 |

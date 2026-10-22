@@ -1,17 +1,20 @@
 import { setOptions } from './config'
 import { startErrorCapture } from './core/error'
 import { startPerformanceCapture } from './core/performance'
+import { add, startQueue } from './report/queue'
+import { debugLog } from './utils/safe'
 import type { InsightOptions, ReportData } from './types'
 
 export const SDK_VERSION = '0.1.0'
 
 /**
- * W1 临时消费者：把采集到的数据打到控制台
- * W2 起替换为上报队列（批量 + sendBeacon + 失败重发）
+ * 采集数据的统一消费者：入队
+ * W1 的“打日志”消费者已退休——现在数据真正流向上报链路：
+ * 采集模块 → 队列 → 传输层 → 服务端
  */
-function debugConsumer(data: ReportData): void {
-  const label = data.type === 'error' ? '错误' : '性能'
-  console.info(`[insight-sdk] ${label}数据就绪（W2 起进入上报队列）:`, data)
+function consumer(data: ReportData): void {
+  debugLog(`${data.type === 'error' ? '错误' : '性能'}数据入队:`, data)
+  add(data)
 }
 
 export function init(options: InsightOptions): void {
@@ -20,8 +23,9 @@ export function init(options: InsightOptions): void {
     return
   }
   setOptions(options)
-  startErrorCapture(debugConsumer)
-  startPerformanceCapture(debugConsumer)
+  startQueue() // 先启动队列（含暂存补发），再开始采集
+  startErrorCapture(consumer)
+  startPerformanceCapture(consumer)
   console.info(`[insight-sdk] v${SDK_VERSION} 初始化完成`, options.projectId)
 }
 
