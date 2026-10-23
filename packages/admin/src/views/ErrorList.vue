@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getErrorList, type ErrorListItem } from '../api'
+import { useRouter } from 'vue-router'
 
 const list = ref<ErrorListItem[]>([])
 const total = ref(0)
@@ -23,12 +24,19 @@ async function load() {
   }
 }
 
+const router = useRouter()
+
+// 点表格行 → 跳该指纹最新记录的详情
+function goDetail(row: ErrorListItem) {
+  router.push(`/errors/${row.id}`)
+}
+
 onMounted(load)
 </script>
 
 <template>
   <div v-loading="loading">
-    <el-table :data="list" border>
+    <el-table :data="list" border @row-click="goDetail">
       <el-table-column prop="message" label="错误信息" show-overflow-tooltip />
       <el-table-column prop="kind" label="类型" width="100" />
       <el-table-column prop="cnt" label="出现次数" width="110" />
@@ -53,4 +61,5 @@ onMounted(load)
 
 <style scoped>
 .pager { margin-top: 16px; display: flex; justify-content: flex-end; }
+:deep(.el-table__row) { cursor: pointer; }
 </style>
