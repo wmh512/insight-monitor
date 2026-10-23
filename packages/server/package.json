@@ -1,0 +1,16 @@
+{
+  "name": "@insight/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@koa/router": "^15.7.0",
+    "dotenv": "^18.0.8",
+    "koa": "^3.2.1",
+    "mysql2": "^3.24.6"
+  }
+}
