@@ -1,0 +1,42 @@
+import axios from 'axios'
+
+// axios 实例：后台所有 API 调用的唯一出口
+const api = axios.create({
+  baseURL: 'http://localhost:3000', // 服务端地址（W9 部署时改成线上域名）
+  timeout: 10000,
+})
+
+// 响应拦截器：成功剥壳、失败统一处理——这是选 axios 不选 fetch 的核心原因
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    console.error('[api] 请求失败:', error.message)
+    return Promise.reject(error)
+  },
+)
+
+// ===== 三个查询接口的封装（契约来自 W5-01）=====
+
+/** 错误列表项（接口返回的数据形状） */
+export interface ErrorListItem {
+  fingerprint: string
+  kind: string
+  message: string
+  cnt: number
+  last_seen: string
+}
+
+/** 错误列表（按指纹聚合 + 分页） */
+export function getErrorList(params: { projectKey: string; page?: number; pageSize?: number }) {
+  return api.get('/api/errors', { params })
+}
+
+/** 错误详情（按主键） */
+export function getErrorDetail(id: number) {
+  return api.get(`/api/errors/${id}`)
+}
+
+/** 概览统计 */
+export function getStats(projectKey: string) {
+  return api.get('/api/stats', { params: { projectKey } })
+}
