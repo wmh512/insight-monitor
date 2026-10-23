@@ -1,5 +1,7 @@
 import Koa from 'koa'
 import router from './routes/report.js'
+import queryRouter from './routes/query.js'
+
 
 const app = new Koa()
 
@@ -28,5 +30,6 @@ app.use(async (ctx, next) => {
 
 // 中间件 3：路由
 app.use(router.routes())
+app.use(queryRouter.routes())
 
 export default app
