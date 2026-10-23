@@ -19,6 +19,7 @@ api.interceptors.response.use(
 
 /** 错误列表项（接口返回的数据形状） */
 export interface ErrorListItem {
+  id: number
   fingerprint: string
   kind: string
   message: string

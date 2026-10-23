@@ -21,6 +21,7 @@ export async function getErrorList(ctx) {
   const [rows] = await pool.query(
     `SELECT e.fingerprint,
             COUNT(*)          AS cnt,
+            MAX(e.id)         AS id,
             MAX(e.created_at) AS last_seen,
             e.kind,
             e.message
