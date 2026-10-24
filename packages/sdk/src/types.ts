@@ -21,6 +21,8 @@ export interface InsightOptions {
   perfSampleRate?: number
   /** 是否开启调试日志，默认 false */
   debug?: boolean
+  /** 上报鉴权令牌（W9-a）：随请求体发往服务端校验 */
+  token?: string
 }
 
 /** 设备与环境信息 */

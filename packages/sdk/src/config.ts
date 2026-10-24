@@ -12,6 +12,7 @@ const DEFAULTS = {
   flushInterval: 5000,
   perfSampleRate: 1,
   debug: false,
+  token: '',
 }
 
 type RuntimeOptions = typeof DEFAULTS & { projectId: string; reportUrl: string }

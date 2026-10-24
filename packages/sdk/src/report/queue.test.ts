@@ -66,9 +66,9 @@ describe('report/queue 上报队列', () => {
     await flushPromises()
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    // 第一批应该是 3 条
+    // 第一批应该是 3 条（W9-a 起：body 是 { token, data }，数据在 data 里）
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body).toHaveLength(3)
+    expect(body.data).toHaveLength(3)
   })
 
   it('flush 取出整批后队列清空，后续数据进下一批', async () => {
@@ -86,7 +86,7 @@ describe('report/queue 上报队列', () => {
     await flushPromises()
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const body = JSON.parse(fetchMock.mock.calls[1][1].body as string)
-    expect(body).toHaveLength(1)
+    expect(body.data).toHaveLength(1)
   })
 
   it('定时器到点强制发送（攒不满也发）', async () => {
@@ -120,7 +120,7 @@ describe('report/queue 上报队列', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body).toHaveLength(2)
+    expect(body.data).toHaveLength(2)
   })
 
   it('采样率为 0 时 performance 数据被丢弃，error 数据全收', async () => {
@@ -143,7 +143,25 @@ describe('report/queue 上报队列', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1) // 只有 3 条 error 触发发送
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body.every((d: ReportData) => d.type === 'error')).toBe(true)
+    expect(body.data.every((d: ReportData) => d.type === 'error')).toBe(true)
+  })
+
+  it('上报体包含 token 字段（W9-a 鉴权契约）', async () => {
+    const config = await import('../config')
+    config.setOptions({
+      projectId: 'test_project',
+      reportUrl: 'http://localhost/api/report',
+      maxQueueSize: 3,
+      token: 'test-token-123',
+    })
+    queueModule.add(makeData())
+    queueModule.add(makeData())
+    queueModule.add(makeData())
+    await flushPromises()
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    expect(body.token).toBe('test-token-123') // token 走 body（sendBeacon 不支持自定义头）
+    expect(body.data).toHaveLength(3)
   })
 
   it('脏数据容错：localStorage 里不是数组时按无暂存处理', async () => {

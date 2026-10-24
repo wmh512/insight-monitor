@@ -45,7 +45,8 @@ const start = performance.now()
 const res = await fetch(REPORT_URL, {
   method: 'POST',
   headers: { 'Content-Type': 'text/plain' },
-  body: JSON.stringify(batch),
+  // W9-a：上报体包一层 { token, data }——token 走 body（sendBeacon 不支持自定义头）
+  body: JSON.stringify({ token: 'dev-token', data: batch }),
 })
 const data = await res.json()
 const ms = (performance.now() - start).toFixed(1)
