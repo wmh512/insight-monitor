@@ -11,6 +11,7 @@ const route = useRoute()
       <el-menu :default-active="route.path" router background-color="#001529" text-color="#fff" active-text-color="#409eff">
         <el-menu-item index="/errors">错误列表</el-menu-item>
         <el-menu-item index="/stats">概览统计</el-menu-item>
+        <el-menu-item index="/perf">性能看板</el-menu-item>
       </el-menu>
     </aside>
     <div class="main">
