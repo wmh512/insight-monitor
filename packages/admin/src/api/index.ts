@@ -37,6 +37,20 @@ export function getErrorDetail(id: number) {
   return api.get(`/api/errors/${id}`)
 }
 
+/** 性能记录（图表数据源） */
+export interface PerfRecord {
+  id: number
+  fp: number | null
+  fcp: number | null
+  lcp: number | null
+  page_url: string
+  created_at: string
+}
+
+export function getPerfList(params: { projectKey: string; page?: number; pageSize?: number }) {
+  return api.get('/api/perf', { params })
+}
+
 /** 概览统计 */
 export function getStats(projectKey: string) {
   return api.get('/api/stats', { params: { projectKey } })
