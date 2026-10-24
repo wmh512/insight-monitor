@@ -25,8 +25,10 @@ import { debugLog } from '../utils/safe'
  * @returns Promise<boolean> true = 投递成功；false = 失败（队列会存入 localStorage 重发）
  */
 export function sendReport(payload: ReportData[]): Promise<boolean> {
-  const { reportUrl } = getOptions()
-  const body = JSON.stringify(payload)
+  const { reportUrl, token } = getOptions()
+  // W9-a：token 包进 body 而不是请求头——sendBeacon 不支持自定义头，
+  // 而页面关闭时的可靠投递是硬需求；两套传输方式因此统一
+  const body = JSON.stringify({ token, data: payload })
 
   // ---- 优先 sendBeacon ----
   if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
