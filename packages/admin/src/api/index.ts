@@ -1,8 +1,10 @@
 import axios from 'axios'
 
 // axios 实例：后台所有 API 调用的唯一出口
+// TODO(W9 完善)：改为环境变量注入（dev=localhost:3000 / prod=相对路径走 Nginx 代理），
+// 现在为线上演示临时硬编码云服务器地址
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // 服务端地址（W9 部署时改成线上域名）
+  baseURL: 'http://114.132.238.83:3000',
   timeout: 10000,
 })
 
