@@ -74,6 +74,45 @@ export async function getErrorDetail(ctx) {
 }
 
 /**
+ * GET /api/perf?projectKey=xxx&page=1&pageSize=50
+ * 性能记录列表（最近 N 条，W7 图表数据源）
+ */
+export async function getPerfList(ctx) {
+  const { projectKey } = ctx.query
+  const page = Math.max(1, parseInt(ctx.query.page ?? '1', 10) || 1)
+  const pageSize = Math.min(100, Math.max(1, parseInt(ctx.query.pageSize ?? '50', 10) || 50))
+
+  if (!projectKey) {
+    ctx.status = 400
+    ctx.body = { code: 400, message: '缺少必填参数: projectKey' }
+    return
+  }
+
+  const offset = (page - 1) * pageSize
+
+  // 列表（SQL 已在 explore-perf.sql 人肉验证过）
+  const [rows] = await pool.query(
+    `SELECT e.id, e.fp, e.fcp, e.lcp, e.page_url, e.created_at
+     FROM perf_report e
+     JOIN project p ON e.project_id = p.id
+     WHERE p.project_key = ?
+     ORDER BY e.created_at DESC
+     LIMIT ${pageSize} OFFSET ${offset}`,
+    [projectKey],
+  )
+
+  const [countRows] = await pool.query(
+    `SELECT COUNT(*) AS total
+     FROM perf_report e
+     JOIN project p ON e.project_id = p.id
+     WHERE p.project_key = ?`,
+    [projectKey],
+  )
+
+  ctx.body = { code: 0, data: { list: rows, total: countRows[0].total, page, pageSize } }
+}
+
+/**
  * GET /api/stats?projectKey=xxx —— 概览统计
  */
 export async function getStats(ctx) {
@@ -104,5 +143,18 @@ export async function getStats(ctx) {
   const byKind = {}
   for (const row of kindRows) byKind[row.kind] = row.cnt
 
-  ctx.body = { code: 0, data: { ...totalRows[0], byKind } }
+  // 性能均值（W7-01 新增，喂看板数字卡片）
+  // CAST AS DOUBLE：AVG 返回 DECIMAL，mysql2 会把它当字符串返回——CAST 保证 API 里是数字
+  const [perfRows] = await pool.execute(
+    `SELECT CAST(AVG(e.fp)  AS DOUBLE) AS avg_fp,
+            CAST(AVG(e.fcp) AS DOUBLE) AS avg_fcp,
+            CAST(AVG(e.lcp) AS DOUBLE) AS avg_lcp,
+            COUNT(*)                     AS cnt
+     FROM perf_report e
+     JOIN project p ON e.project_id = p.id
+     WHERE p.project_key = ?`,
+    [projectKey],
+  )
+
+  ctx.body = { code: 0, data: { ...totalRows[0], byKind, perf: perfRows[0] } }
 }
