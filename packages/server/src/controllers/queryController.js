@@ -124,8 +124,8 @@ export async function getStats(ctx) {
   }
 
   const [totalRows] = await pool.execute(
-    `SELECT COUNT(*)                       AS total_errors,
-            SUM(e.created_at >= CURDATE()) AS today_errors
+    `SELECT COUNT(*)                                     AS total_errors,
+            CAST(SUM(e.created_at >= CURDATE()) AS UNSIGNED) AS today_errors
      FROM error_report e
      JOIN project p ON e.project_id = p.id
      WHERE p.project_key = ?`,
