@@ -5,8 +5,9 @@ dotenv.config()
 
 const config = {
   port: Number(process.env.PORT ?? 3000),
-  // 上报令牌（W9-a）：为空时拒绝所有上报（fail closed，不配不放行）
   reportToken: process.env.REPORT_TOKEN ?? '',
+  // Server酱 SendKey（W9-c 告警）：为空时告警静默关闭（fail-soft）
+  sctSendKey: process.env.SCT_SENDKEY ?? '',
   db: {
     host: process.env.DB_HOST ?? 'localhost',
     port: Number(process.env.DB_PORT ?? 3306),
