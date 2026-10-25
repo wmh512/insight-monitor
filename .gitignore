@@ -10,7 +10,12 @@ coverage/
 # env & local
 .env
 .env.*
+# 例外：配置模板要进仓库（.env.* 会连它一起吃掉——P021 的坑）
+!.env.example
 *.local
+
+# 本地私有文档（不公开，仅本机留存）
+docs/项目完全文档.md
 
 # logs
 *.log

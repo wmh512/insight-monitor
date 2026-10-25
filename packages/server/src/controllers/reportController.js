@@ -1,4 +1,5 @@
 import { pool } from '../db/pool.js'
+import { notifyNewError } from '../utils/notifier.js'
 
 /**
  * POST /api/report 上报接口
@@ -39,6 +40,12 @@ export async function handleReport(ctx) {
       perfRows.push(buildPerfRow(projectId, item))
     }
   }
+  // ---- 3.5 查新指纹（W9-c 告警）：本批之前库里不存在的才配触发通知 ----
+  // 必须在插入前查——插入后所有指纹 count 都 >= 1，分不清谁是刚来的
+  let pendingAlerts = new Set()
+  if (errorRows.length > 0) {
+    pendingAlerts = await findNewFingerprints(errorRows)
+  }
   if (errorRows.length > 0) {
     const { sql, params } = buildBatchInsert(
       'error_report',
@@ -46,6 +53,14 @@ export async function handleReport(ctx) {
       errorRows,
     )
     await pool.execute(sql, params)
+    // 入库成功才通知——插入失败的数据不配报警
+    // delete + has：同批重复出现的同一指纹只推一次（双保险）
+    for (const row of errorRows) {
+      if (pendingAlerts.has(row[1])) {
+        pendingAlerts.delete(row[1])
+        notifyNewError({ kind: row[2], message: row[3], fingerprint: row[1], pageUrl: row[5] })
+      }
+    }
   }
   if (perfRows.length > 0) {
     const { sql, params } = buildBatchInsert(
@@ -90,6 +105,21 @@ function buildBatchInsert(table, columns, rows) {
   const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${placeholders}`
   const params = rows.flat()
   return { sql, params }
+}
+
+/**
+ * 找出本批错误里"库里还没见过"的指纹（W9-c 告警专用）
+ * 一次 IN 查询搞定整批——不是每条错误一个查询
+ * 占位符个数由数组长度决定（结构性拼装），数据全走 ?——无注入风险
+ */
+async function findNewFingerprints(errorRows) {
+  const fingerprints = [...new Set(errorRows.map((row) => row[1]))]
+  const [existing] = await pool.execute(
+    `SELECT DISTINCT fingerprint FROM error_report WHERE fingerprint IN (${fingerprints.map(() => '?').join(', ')})`,
+    fingerprints,
+  )
+  const existingSet = new Set(existing.map((r) => r.fingerprint))
+  return new Set(fingerprints.filter((fp) => !existingSet.has(fp)))
 }
 
 /**
