@@ -1,4 +1,5 @@
 import { pool } from '../db/pool.js'
+import { getRawBody } from '../utils/rawBody.js'
 
 /**
  * GET /api/errors?projectKey=xxx&page=1&pageSize=20
@@ -18,15 +19,19 @@ export async function getErrorList(ctx) {
   const offset = (page - 1) * pageSize
 
   // 聚合列表（SQL 已在 explore-queries.sql 人肉验证过）
+  // LEFT JOIN issue：带出 issue 的生命周期状态与通知次数（没有 issue 记录的旧数据兜底为 unseen）
   const [rows] = await pool.query(
     `SELECT e.fingerprint,
             COUNT(*)          AS cnt,
             MAX(e.id)         AS id,
             MAX(e.created_at) AS last_seen,
             e.kind,
-            e.message
+            e.message,
+            COALESCE(MAX(i.status), 'unseen') AS status,
+            COALESCE(MAX(i.notify_count), 0)  AS notify_count
      FROM error_report e
      JOIN project p ON e.project_id = p.id
+     LEFT JOIN issue i ON i.fingerprint = e.fingerprint
      WHERE p.project_key = ?
      GROUP BY e.fingerprint, e.kind, e.message
      ORDER BY last_seen DESC
@@ -113,9 +118,49 @@ export async function getPerfList(ctx) {
 }
 
 /**
- * GET /api/stats?projectKey=xxx —— 概览统计
+ * PATCH /api/issues/:fingerprint —— 手动更新 issue 状态（标记已解决 / 重新打开）
+ *
+ * W9-d 状态机的"人工干预"入口：把 issue 标成 resolved 之后，
+ * 它一旦再次出现，服务端会自动复活成 unseen 并推送"复发告警"
  */
-export async function getStats(ctx) {
+export async function updateIssueStatus(ctx) {
+  const { fingerprint } = ctx.params
+
+  // 服务端没有装 body 解析中间件（上报接口就是手动读原始流的）——这里沿用同一套路，
+  // 否则 ctx.request.body 恒为 undefined，状态永远收不到
+  let body
+  try {
+    body = JSON.parse(await getRawBody(ctx))
+  } catch {
+    ctx.status = 400
+    ctx.body = { code: 400, message: '请求体不是合法的 JSON' }
+    return
+  }
+
+  const { status } = body ?? {}
+  if (!['unseen', 'seen', 'resolved'].includes(status)) {
+    ctx.status = 400
+    ctx.body = { code: 400, message: 'status 必须是 unseen / seen / resolved' }
+    return
+  }
+
+  const [result] = await pool.execute(
+    `UPDATE issue SET resolved_at = ?, status = ? WHERE fingerprint = ?`,
+    [status === 'resolved' ? new Date() : null, status, fingerprint],
+  )
+
+  if (result.affectedRows === 0) {
+    ctx.status = 404
+    ctx.body = { code: 404, message: `issue 不存在: ${fingerprint}` }
+    return
+  }
+
+  ctx.body = { code: 0, data: { fingerprint, status } }
+}
+
+/**
+ * GET /api/stats?projectKey=xxx —— 概览统计
+ */export async function getStats(ctx) {
   const { projectKey } = ctx.query
   if (!projectKey) {
     ctx.status = 400

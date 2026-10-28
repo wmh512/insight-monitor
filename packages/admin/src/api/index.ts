@@ -19,6 +19,9 @@ api.interceptors.response.use(
 
 // ===== 三个查询接口的封装（契约来自 W5-01）=====
 
+/** issue 生命周期状态（W9-d 状态机） */
+export type IssueStatus = 'unseen' | 'seen' | 'resolved'
+
 /** 错误列表项（接口返回的数据形状） */
 export interface ErrorListItem {
   id: number
@@ -27,11 +30,20 @@ export interface ErrorListItem {
   message: string
   cnt: number
   last_seen: string
+  /** 生命周期状态 */
+  status: IssueStatus
+  /** 累计通知次数 */
+  notify_count: number
 }
 
 /** 错误列表（按指纹聚合 + 分页） */
 export function getErrorList(params: { projectKey: string; page?: number; pageSize?: number }) {
   return api.get('/api/errors', { params })
+}
+
+/** 更新 issue 状态（标记已解决 / 重新打开）——状态机的人工干预入口 */
+export function setIssueStatus(fingerprint: string, status: IssueStatus) {
+  return api.patch(`/api/issues/${fingerprint}`, { status })
 }
 
 /** 错误详情（按主键） */

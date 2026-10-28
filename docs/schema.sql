@@ -38,7 +38,31 @@ CREATE TABLE `error_report` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='错误上报明细';
 
 -- ------------------------------------------------------------
--- 3. 性能报表
+-- 3. issue 表（错误指纹的生命周期状态机，W9-d）
+--    指纹即 issue 身份：同一指纹 = 同一个 issue
+--    status: unseen(新) → seen(处理中) → resolved(我标记已解决)
+--    resolved 的 issue 再次出现 → 自动复活为 unseen 并推送"复发告警"
+-- ------------------------------------------------------------
+CREATE TABLE `issue` (
+  `fingerprint`      VARCHAR(64)  NOT NULL COMMENT '错误指纹（= issue 身份）',
+  `project_id`       INT UNSIGNED NOT NULL,
+  `kind`             ENUM('js','promise','resource') NOT NULL,
+  `message`          VARCHAR(500) NOT NULL,
+  `last_page_url`    VARCHAR(500) NULL COMMENT '最近一次出现的页面',
+  `status`           VARCHAR(16)  NOT NULL DEFAULT 'unseen' COMMENT 'unseen | seen | resolved',
+  `seen_count`       INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '累计出现次数',
+  `notify_count`     INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '累计通知次数',
+  `first_seen`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_seen`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_notified_at` DATETIME     NULL COMMENT '上次推送时间（冷却窗口依据）',
+  `resolved_at`      DATETIME     NULL COMMENT '标记为已解决的时间',
+  PRIMARY KEY (`fingerprint`),
+  KEY `idx_status` (`status`),
+  KEY `idx_last_seen` (`last_seen`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='错误 issue 生命周期';
+
+-- ------------------------------------------------------------
+-- 4. 性能报表
 -- ------------------------------------------------------------
 CREATE TABLE `perf_report` (
   `id`         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

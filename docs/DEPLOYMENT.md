@@ -116,13 +116,37 @@ nginx -t && systemctl reload nginx
 chmod -R o+rX /opt/insight                     # 权限修复，见坑 2
 ```
 
-## 更新流程（日常发版）
+## 更新流程（日常发版：tar 整体部署）
+
+> ⚠️ **不要用 `scp 多个文件 → 同一个目录`**——scp 会把不同源目录的文件平铺进同一个目标目录，
+> 文件会"放错房间"（P022，本项目已踩三次）。**打包整体部署，目录结构原样保留，不存在错位可能。**
+
+```bash
+# ① 本地打包（结构原样保留）
+tar -czf deploy-src.tgz -C packages/server/src .
+scp deploy-src.tgz root@114.132.238.83:/opt/insight/
+```
+
+```bash
+# ② 云上：先备份（可回滚）→ 解包覆盖 → 清孤儿 → 补权限 → 重启
+cp -r /opt/insight/packages/server/src /opt/insight/src-backup-$(date +%m%d-%H%M)
+tar -xzf /opt/insight/deploy-src.tgz -C /opt/insight/packages/server/src --overwrite
+chmod -R o+rX /opt/insight          # nginx 用户要读得到（umask 027 的坑，见下表）
+pm2 restart insight-api --update-env
+```
+
+```bash
+# ③ 验证（不看日志，看功能——curl 打接口看返回字段）
+curl -s "http://localhost:3000/api/errors?projectKey=demo_project_key_001&pageSize=2"
+```
 
 | 改了什么 | 怎么上线 |
 |---|---|
-| 服务端代码 | scp 覆盖 `server/src/` → `pm2 restart insight-api` |
-| 后台前端 | 本地 `pnpm --filter @insight/admin build` → scp 覆盖 `admin/dist/`（无需重启，静态文件） |
-| 数据库结构/数据 | mysqldump → scp → `mysql < ` 导入 |
+| 服务端代码 | 上面的 tar 四步（**改了 .env 必须 `--update-env`**，否则 PM2 用旧环境快照） |
+| 后台前端 | 本地 `pnpm --filter @insight/admin build` → scp 覆盖 `admin/dist/` → **chmod 补权限**（无需重启） |
+| 数据库结构 | `docs/migrate-issue.sql` 等迁移脚本上云执行（**脚本要幂等，重复执行不报错**） |
+| 数据库数据 | `mysqldump --result-file=...`（**别用 shell 重定向**）→ scp → `mysql -u insight -p insight_monitor < file` |
+| 紧急回滚 | `rm -rf /opt/insight/packages/server/src && cp -r /opt/insight/src-backup-<日期> /opt/insight/packages/server/src && pm2 restart insight-api` |
 
 ## 踩坑记录（全部有案底）
 
@@ -133,11 +157,32 @@ chmod -R o+rX /opt/insight                     # 权限修复，见坑 2
 | 3 | 改 `.env` 后新服务起不来：旧进程占着 3000（EADDRINUSE），且旧进程带着旧配置在岗 | `Get-NetTCPConnection -LocalPort 3000` 找进程杀掉再起（云上：`fuser -k 3000/tcp` 或按 PID kill） | — |
 | 4 | 空库直接查 API 报 500 `ER_NO_SUCH_TABLE` | 先跑第 6 步数据搬家（含建表） | — |
 | 5 | `dnf module list nodejs` 无模块——但 `dnf install nodejs` 直接能装 20 | 工具的一条报错路径 ≠ 此路不通，先试直接安装 | — |
+| 6 | **scp 多源平铺**：多文件从不同源目录传到同一目标目录 → 文件"放错房间"，旧文件继续在岗 | **改用 tar 整体部署**（结构原样保留）+ 传完 `grep -c` 验证目标文件 | P022 |
+| 7 | **部分文件更新**：新 routes + 旧 controller → 进程启动即 SyntaxError（比完全没更新更糟） | 发版要么全上要么全不上；重启后先看启动日志 | — |
+| 8 | 改了 `.env` 但 PM2 仍用旧环境快照 | `pm2 restart <app> --update-env`（PM2 会主动警告这件事） | — |
+| 9 | 手写 SQL 占位符与列数错位 → `ER_WRONG_VALUE_COUNT` | 列清单与值表达式写在一起（相邻常量）；**上线前用真库跑一遍目标语句** | P024 |
+| 10 | 新增 PATCH 接口后前端"点了没反应" | CORS `Allow-Methods` 补全（**非简单方法会触发预检**）；本地用 OPTIONS + `Access-Control-Request-Method` 模拟预检验证 | P025 |
+| 11 | 服务端没有 body 解析中间件 → `ctx.request.body` 恒为 undefined → 400 | 沿用仓库既有模式：`getRawBody` 手动读流 + JSON.parse | P026 |
+| 12 | 迁移脚本重复执行报 `Duplicate entry` | 迁移脚本必须**幂等**：`INSERT IGNORE` / `CREATE TABLE IF NOT EXISTS` | — |
 
 ## 已知取舍（Roadmap）
 
 - **HTTPS/域名**：待域名备案（1-2 周）后配 Nginx + 证书；先用 IP + HTTP
 - **API 地址硬编码**：admin 的 `baseURL` 与 demo 的 `reportUrl` 暂写死线上 IP，应改为环境变量注入（dev=localhost / prod=相对路径走代理）
 - **上报 token** 为静态单值（写死在 demo 页中可见），生产级应项目级 token + 服务端存储
-- `today_errors` 返回字符串（SUM 的 DECIMAL 语义），需 CAST AS UNSIGNED
-- 无 CI/CD：手动 scp + restart，量级够用；上 GitHub Actions 是 P2
+- `today_errors` 类型已修复（`CAST(... AS UNSIGNED)`，2026-10-25 发版）
+- 无 CI/CD：手动 tar 部署 + restart，量级够用；上 GitHub Actions 是 P2
+
+---
+
+## 附：多项目共用一台服务器（2026-10-28 观察）
+
+```
+pm2 status
+huawei-mall-api   1.0.0 │ fork │ pid 972970 │ 20h │ online │ 69.4mb
+insight-api       0.1.0 │ fork │ pid 1243538 │  0s │ online │ 12.4mb
+```
+
+**这台机器上已经跑着两个业务后端**（商城 API + 监控 API），PM2 统一守护、Nginx 按路径分流。
+"单机多项目"不是设想而是既成事实——新增项目只需：加一个 PM2 进程 + 加一段 Nginx location + 建一个独立库。
+**边界**：CPU/内存共享（4C4G 当前余量充足），项目间无资源隔离；真要做隔离该上容器（Docker）或各自独立实例。

@@ -17,9 +17,11 @@ app.use(async (ctx, next) => {
 })
 
 // 中间件 2：CORS（SDK 从别的页面发请求，浏览器要这个许可证）
+// Allow-Methods 要覆盖所有对外暴露的方法——新增 PATCH 等非简单方法时必须同步加，
+// 否则浏览器预检（OPTIONS）直接拦掉请求（前端表现为"点了没反应"）
 app.use(async (ctx, next) => {
   ctx.set('Access-Control-Allow-Origin', '*')
-  ctx.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  ctx.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS')
   ctx.set('Access-Control-Allow-Headers', 'Content-Type')
   if (ctx.method === 'OPTIONS') {
     ctx.status = 204

@@ -1,5 +1,5 @@
 import { pool } from '../db/pool.js'
-import { notifyNewError } from '../utils/notifier.js'
+import { decideNotification, notifyIssue } from '../utils/notifier.js'
 
 /**
  * POST /api/report 上报接口
@@ -40,12 +40,7 @@ export async function handleReport(ctx) {
       perfRows.push(buildPerfRow(projectId, item))
     }
   }
-  // ---- 3.5 查新指纹（W9-c 告警）：本批之前库里不存在的才配触发通知 ----
-  // 必须在插入前查——插入后所有指纹 count 都 >= 1，分不清谁是刚来的
-  let pendingAlerts = new Set()
-  if (errorRows.length > 0) {
-    pendingAlerts = await findNewFingerprints(errorRows)
-  }
+  // ---- 4. 错误入库（批量插入，W4-02 优化：20 条数据 2 次查询）----
   if (errorRows.length > 0) {
     const { sql, params } = buildBatchInsert(
       'error_report',
@@ -53,15 +48,9 @@ export async function handleReport(ctx) {
       errorRows,
     )
     await pool.execute(sql, params)
-    // 入库成功才通知——插入失败的数据不配报警
-    // delete + has：同批重复出现的同一指纹只推一次（双保险）
-    for (const row of errorRows) {
-      if (pendingAlerts.has(row[1])) {
-        pendingAlerts.delete(row[1])
-        notifyNewError({ kind: row[2], message: row[3], fingerprint: row[1], pageUrl: row[5] })
-      }
-    }
   }
+
+  // ---- 5. 性能数据入库（批量）----
   if (perfRows.length > 0) {
     const { sql, params } = buildBatchInsert(
       'perf_report',
@@ -71,7 +60,92 @@ export async function handleReport(ctx) {
     await pool.execute(sql, params)
   }
 
-  // ---- 4. 响应 ----
+  // ---- 6. issue 生命周期（W9-d）：指纹即 issue 身份，状态机 + 递增通知 ----
+  //    指纹 = issue 的主键：同一指纹 = 同一个 issue
+  if (errorRows.length > 0) {
+    // 本批内每个指纹出现了几次 + 该指纹的第一条数据
+    const batchCounts = new Map()
+    const rowByFp = new Map()
+    for (const row of errorRows) {
+      batchCounts.set(row[1], (batchCounts.get(row[1]) ?? 0) + 1)
+      if (!rowByFp.has(row[1])) rowByFp.set(row[1], row)
+    }
+    const fingerprints = [...batchCounts.keys()]
+
+    // ① 先查旧状态——必须在写入之前，写完就看不出谁是新来的了
+    const [oldRows] = await pool.execute(
+      `SELECT fingerprint, status, seen_count, notify_count, last_notified_at
+       FROM issue WHERE fingerprint IN (${fingerprints.map(() => '?').join(', ')})`,
+      fingerprints,
+    )
+    const oldMap = new Map(oldRows.map((r) => [r.fingerprint, r]))
+
+    // ② 新 issue 直接插入（INSERT IGNORE：已存在的不动，交给第③步）
+    //    列清单与值表达式写在一起——手写占位符最容易数错（本次就错了一个 ?）
+    const ISSUE_COLS = [
+      'fingerprint',
+      'project_id',
+      'kind',
+      'message',
+      'last_page_url',
+      'seen_count',
+      'first_seen',
+      'last_seen',
+    ]
+    const ISSUE_VALUES = ['?', '?', '?', '?', '?', '?', 'NOW()', 'NOW()']
+    const placeholders = fingerprints.map(() => `(${ISSUE_VALUES.join(', ')})`).join(', ')
+    const insertParams = []
+    for (const fp of fingerprints) {
+      const row = rowByFp.get(fp)
+      insertParams.push(fp, projectId, row[2], row[3], row[5], batchCounts.get(fp))
+    }
+    await pool.execute(
+      `INSERT IGNORE INTO issue (${ISSUE_COLS.join(', ')}) VALUES ${placeholders}`,
+      insertParams,
+    )
+
+    // ③ 已存在的 issue：累加次数 + 复活（resolved → unseen）
+    //    赋值顺序有讲究：resolved_at 必须排在 status 之前——否则 status 已被更新，
+    //    就看不出这条到底是不是"复活"的了
+    for (const fp of fingerprints) {
+      if (!oldMap.has(fp)) continue
+      const row = rowByFp.get(fp)
+      await pool.execute(
+        `UPDATE issue
+         SET seen_count    = seen_count + ?,
+             last_seen     = NOW(),
+             last_page_url = ?,
+             resolved_at   = IF(status = 'resolved', NULL, resolved_at),
+             status        = IF(status = 'resolved', 'unseen', status)
+         WHERE fingerprint = ?`,
+        [batchCounts.get(fp), row[5], fp],
+      )
+    }
+
+    // ④ 通知决策 + 推送（每个指纹只判一次，避免同批重复推）
+    for (const fp of fingerprints) {
+      const old = oldMap.get(fp) ?? null
+      const row = rowByFp.get(fp)
+      const current = {
+        fingerprint: fp,
+        kind: row[2],
+        message: row[3],
+        pageUrl: row[5],
+        seenCount: (old?.seen_count ?? 0) + batchCounts.get(fp),
+        notifyCount: (old?.notify_count ?? 0) + 1,
+      }
+      const decision = decideNotification(old)
+      if (!decision) continue
+      notifyIssue(decision, current)
+      // 通知计数 +1 + 记下通知时间（冷却窗口靠它判断）
+      await pool.execute(
+        `UPDATE issue SET notify_count = notify_count + 1, last_notified_at = NOW() WHERE fingerprint = ?`,
+        [fp],
+      )
+    }
+  }
+
+  // ---- 7. 响应 ----
   ctx.body = { code: 0, message: 'ok', received: list.length }
 }
 
@@ -105,21 +179,6 @@ function buildBatchInsert(table, columns, rows) {
   const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${placeholders}`
   const params = rows.flat()
   return { sql, params }
-}
-
-/**
- * 找出本批错误里"库里还没见过"的指纹（W9-c 告警专用）
- * 一次 IN 查询搞定整批——不是每条错误一个查询
- * 占位符个数由数组长度决定（结构性拼装），数据全走 ?——无注入风险
- */
-async function findNewFingerprints(errorRows) {
-  const fingerprints = [...new Set(errorRows.map((row) => row[1]))]
-  const [existing] = await pool.execute(
-    `SELECT DISTINCT fingerprint FROM error_report WHERE fingerprint IN (${fingerprints.map(() => '?').join(', ')})`,
-    fingerprints,
-  )
-  const existingSet = new Set(existing.map((r) => r.fingerprint))
-  return new Set(fingerprints.filter((fp) => !existingSet.has(fp)))
 }
 
 /**

@@ -17,6 +17,9 @@ coverage/
 # 本地私有文档（不公开，仅本机留存）
 docs/项目完全文档.md
 
+# 发版打包产物（临时文件，不入库）
+deploy-src.tgz
+
 # logs
 *.log
 npm-debug.log*
