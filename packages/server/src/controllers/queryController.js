@@ -1,4 +1,5 @@
 import { pool } from '../db/pool.js'
+import { getRawBody } from '../utils/rawBody.js'
 
 /**
  * GET /api/errors?projectKey=xxx&page=1&pageSize=20
@@ -124,8 +125,19 @@ export async function getPerfList(ctx) {
  */
 export async function updateIssueStatus(ctx) {
   const { fingerprint } = ctx.params
-  const { status } = ctx.request.body ?? {}
 
+  // 服务端没有装 body 解析中间件（上报接口就是手动读原始流的）——这里沿用同一套路，
+  // 否则 ctx.request.body 恒为 undefined，状态永远收不到
+  let body
+  try {
+    body = JSON.parse(await getRawBody(ctx))
+  } catch {
+    ctx.status = 400
+    ctx.body = { code: 400, message: '请求体不是合法的 JSON' }
+    return
+  }
+
+  const { status } = body ?? {}
   if (!['unseen', 'seen', 'resolved'].includes(status)) {
     ctx.status = 400
     ctx.body = { code: 400, message: 'status 必须是 unseen / seen / resolved' }
