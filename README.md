@@ -56,6 +56,7 @@ insight-monitor/
 | [docs/schema.sql](docs/schema.sql) | 数据库表结构 |
 | [docs/BENCHMARK.md](docs/BENCHMARK.md) | 性能基准记录（项目数据的唯一来源） |
 | [docs/问题日志.md](docs/问题日志.md) | 问题排查记录（经验复盘的来源） |
+| [docs/TASKS.md](docs/TASKS.md) | 待办清单：上线安全、面试官只读演示与验收标准 |
 
 ## Git 提交规范
 
