@@ -3,12 +3,15 @@ import { ref, onMounted } from 'vue'
 import { getErrorList, setIssueStatus, type ErrorListItem, type IssueStatus } from '../api'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { notifyError } from '../utils/error'
 
 const list = ref<ErrorListItem[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
+const updatingFingerprint = ref('')
+const loadFailed = ref(false)
 
 // 生命周期状态 → 展示（unseen=新问题，seen=处理中，resolved=已解决）
 const STATUS_META: Record<IssueStatus, { text: string; type: 'danger' | 'info' | 'success' }> = {
@@ -19,6 +22,7 @@ const STATUS_META: Record<IssueStatus, { text: string; type: 'danger' | 'info' |
 
 async function load() {
   loading.value = true
+  loadFailed.value = false
   try {
     const res = await getErrorList({
       projectKey: 'demo_project_key_001',
@@ -27,6 +31,9 @@ async function load() {
     })
     list.value = res.data.list
     total.value = res.data.total
+  } catch (error) {
+    loadFailed.value = true
+    notifyError(error, '错误列表加载失败')
   } finally {
     loading.value = false
   }
@@ -41,10 +48,18 @@ function goDetail(row: ErrorListItem) {
 
 // 标记已解决 / 重新打开（状态机的人工干预）
 async function toggleStatus(row: ErrorListItem) {
+  if (updatingFingerprint.value) return
   const next: IssueStatus = row.status === 'resolved' ? 'unseen' : 'resolved'
-  await setIssueStatus(row.fingerprint, next)
-  ElMessage.success(next === 'resolved' ? '已标记为已解决' : '已重新打开')
-  await load()
+  updatingFingerprint.value = row.fingerprint
+  try {
+    await setIssueStatus(row.fingerprint, next)
+    ElMessage.success(next === 'resolved' ? '已标记为已解决' : '已重新打开')
+    await load()
+  } catch (error) {
+    notifyError(error, '状态更新失败，请重试')
+  } finally {
+    updatingFingerprint.value = ''
+  }
 }
 
 onMounted(load)
@@ -53,6 +68,7 @@ onMounted(load)
 <template>
   <div v-loading="loading">
     <el-table :data="list" border @row-click="goDetail">
+      <template #empty><el-empty :description="loadFailed ? '加载失败，请稍后重试' : '暂无错误数据'" /></template>
       <el-table-column prop="message" label="错误信息" show-overflow-tooltip />
       <el-table-column prop="kind" label="类型" width="90" />
       <el-table-column prop="cnt" label="出现次数" width="100" />
@@ -73,7 +89,7 @@ onMounted(load)
       <el-table-column label="操作" width="120">
         <template #default="{ row }">
           <!-- @click.stop：阻止冒泡，否则点按钮会同时触发整行的跳转 -->
-          <el-button size="small" text type="primary" @click.stop="toggleStatus(row)">
+          <el-button size="small" text type="primary" :loading="updatingFingerprint === row.fingerprint" :disabled="Boolean(updatingFingerprint)" @click.stop="toggleStatus(row)">
             {{ row.status === 'resolved' ? '重新打开' : '标记已解决' }}
           </el-button>
         </template>

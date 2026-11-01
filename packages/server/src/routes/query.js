@@ -7,9 +7,12 @@ import {
   updateIssueStatus,
 } from '../controllers/queryController.js'
 import { adminAuth } from '../middlewares/auth.js'
+import { login, logout } from '../middlewares/session.js'
 
 const router = new Router()
 
+router.post('/api/auth/login', login)
+router.post('/api/auth/logout', logout)
 router.get('/api/errors', adminAuth, getErrorList)
 router.get('/api/errors/:id', adminAuth, getErrorDetail)
 router.get('/api/stats', adminAuth, getStats)

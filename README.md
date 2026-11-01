@@ -20,8 +20,9 @@
 跨域浏览器来源通过 `CORS_ORIGINS` 白名单配置；CORS 不替代上报 token。
 3. **admin**：Vue3 + TypeScript 管理后台，提供错误列表 / 详情、性能看板
 
-管理查询与 issue 状态接口使用 HTTP Basic Auth。按 `packages/server/.env.example`
-配置独立管理员账号；管理密码不进入 admin 或 SDK 构建产物。正式部署必须同时启用 HTTPS。
+管理后台使用页面登录表单与 HttpOnly 会话 Cookie，提供错误密码提示、会话保持与退出登录。
+按 `packages/server/.env.example` 配置独立管理员账号；管理密码不进入 admin 或 SDK 构建产物。
+正式部署必须同时启用 HTTPS。
 
 ## 仓库结构
 

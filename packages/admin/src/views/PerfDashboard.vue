@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import { getStats, getPerfList, type PerfRecord } from '../api'
+import { notifyError } from '../utils/error'
 
 interface PerfStats {
   avg_fp: number
@@ -11,6 +12,7 @@ interface PerfStats {
 }
 
 const stats = ref<PerfStats | null>(null)
+const loadFailed = ref(false)
 const chartEl = ref<HTMLDivElement>()
 let chart: echarts.ECharts | null = null
 
@@ -43,16 +45,19 @@ function renderChart(records: PerfRecord[]) {
 }
 
 onMounted(async () => {
-  // 1. 卡片数据（统计接口的 perf 段）
-  const statsRes = await getStats('demo_project_key_001')
-  stats.value = statsRes.data.perf
-
-  // 2. 图表数据（最近 50 条性能记录）
-  const perfRes = await getPerfList({ projectKey: 'demo_project_key_001', pageSize: 50 })
-  renderChart(perfRes.data.list)
-
-  // 3. 窗口缩放 → 图表跟着缩放
-  window.addEventListener('resize', handleResize)
+  try {
+    // 统计与图表任一失败都保留明确提示，不让页面无声空白。
+    const [statsRes, perfRes] = await Promise.all([
+      getStats('demo_project_key_001'),
+      getPerfList({ projectKey: 'demo_project_key_001', pageSize: 50 }),
+    ])
+    stats.value = statsRes.data.perf
+    renderChart(perfRes.data.list)
+    window.addEventListener('resize', handleResize)
+  } catch (error) {
+    loadFailed.value = true
+    notifyError(error, '性能数据加载失败')
+  }
 })
 
 // 组件销毁时清理：图表实例和事件监听都要释放（否则内存泄漏 + 报错）
@@ -90,6 +95,7 @@ onUnmounted(() => {
       <div ref="chartEl" class="chart"></div>
     </el-card>
   </div>
+  <el-result v-else-if="loadFailed" icon="error" title="性能数据加载失败" sub-title="请稍后刷新重试" />
 </template>
 
 <style scoped>
