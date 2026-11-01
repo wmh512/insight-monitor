@@ -1,10 +1,8 @@
 import axios from 'axios'
 
-// axios 实例：后台所有 API 调用的唯一出口
-// TODO(W9 完善)：改为环境变量注入（dev=localhost:3000 / prod=相对路径走 Nginx 代理），
-// 现在为线上演示临时硬编码云服务器地址
+// 开发环境直连本机 API；生产环境默认同源，由 Nginx 将 /api 转发给 Koa。
 const api = axios.create({
-  baseURL: 'http://114.132.238.83:3000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
 })
 

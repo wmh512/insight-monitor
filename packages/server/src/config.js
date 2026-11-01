@@ -6,6 +6,10 @@ dotenv.config()
 const config = {
   port: Number(process.env.PORT ?? 3000),
   reportToken: process.env.REPORT_TOKEN ?? '',
+  admin: {
+    username: process.env.ADMIN_USERNAME ?? '',
+    password: process.env.ADMIN_PASSWORD ?? '',
+  },
   // Server酱 SendKey（W9-c 告警）：为空时告警静默关闭（fail-soft）
   sctSendKey: process.env.SCT_SENDKEY ?? '',
   db: {
