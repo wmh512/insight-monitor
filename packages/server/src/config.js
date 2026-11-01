@@ -6,6 +6,12 @@ dotenv.config()
 const config = {
   port: Number(process.env.PORT ?? 3000),
   reportToken: process.env.REPORT_TOKEN ?? '',
+  maxBodyBytes: Number(process.env.MAX_BODY_BYTES ?? 65536),
+  reportRateLimit: Number(process.env.REPORT_RATE_LIMIT ?? 120),
+  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   // Server酱 SendKey（W9-c 告警）：为空时告警静默关闭（fail-soft）
   sctSendKey: process.env.SCT_SENDKEY ?? '',
   db: {

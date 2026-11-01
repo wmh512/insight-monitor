@@ -69,7 +69,7 @@ scp -r packages\sdk\demo              root@IP:/opt/insight/packages/sdk/
 ```bash
 cd /opt/insight/packages/server
 npm install --registry=https://registry.npmmirror.com
-# 写 .env（heredoc）：PORT / REPORT_TOKEN / DB_* （注意 DB_USER=insight）
+# 写 .env（heredoc）：PORT / REPORT_TOKEN / MAX_BODY_BYTES / REPORT_RATE_LIMIT / CORS_ORIGINS / DB_* （注意 DB_USER=insight）
 pm2 start src/index.js --name insight-api
 pm2 logs insight-api --lines 10 --nostream   # 看到"监控服务端已启动"即点火成功
 ```
@@ -171,6 +171,8 @@ curl -s "http://localhost:3000/api/errors?projectKey=demo_project_key_001&pageSi
 - **API 地址硬编码**：admin 的 `baseURL` 暂写死线上 IP，应改为环境变量注入；demo 已统一在 `demo/config.js` 配置。
 - **SDK Demo**：`/sdk/demo/` 加载 `demo/config.js` 与 `/sdk/dist/insight.umd.js`；部署需同时更新 `dist` 和 `demo`，并确认 `reportUrl` 与服务端 `REPORT_TOKEN` 匹配。浏览器中的上报 token 是公开写入凭证，不是管理密码。
 - **上报 token** 为静态单值（写死在 demo 页中可见），生产级应项目级 token + 服务端存储
+- **请求安全**：默认单次 64 KiB、每批最多 20 条；按项目 + IP 每分钟最多 120 批。`CORS_ORIGINS` 配置允许的后台/SDK 浏览器来源（逗号分隔），无 Origin 的服务端请求不受影响。
+- **限流边界**：当前为单进程内存滑动窗口，重启清零；多实例部署需使用 Redis 等共享存储，不能声称已具备分布式限流。
 - `today_errors` 类型已修复（`CAST(... AS UNSIGNED)`，2026-10-25 发版）
 - 无 CI/CD：手动 tar 部署 + restart，量级够用；上 GitHub Actions 是 P2
 

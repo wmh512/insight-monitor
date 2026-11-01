@@ -16,7 +16,8 @@ export async function reportAuth(ctx, next) {
   let parsed
   try {
     parsed = JSON.parse(await getRawBody(ctx))
-  } catch {
+  } catch (err) {
+    if (err.message === 'BODY_TOO_LARGE') throw err
     ctx.status = 400
     ctx.body = { code: 400, message: '请求体不是合法的 JSON' }
     return
@@ -37,5 +38,6 @@ export async function reportAuth(ctx, next) {
 
   // 校验通过，把数据交给控制器
   ctx.state.reportData = parsed.data
+  ctx.state.reportProjectId = Array.isArray(parsed.data) ? parsed.data[0]?.projectId : ''
   await next()
 }
