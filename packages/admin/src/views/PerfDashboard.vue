@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { getStats, getPerfList, type PerfRecord } from '../api'
 import { notifyError } from '../utils/error'
@@ -23,6 +23,7 @@ function handleResize() {
 
 function renderChart(records: PerfRecord[]) {
   if (!chartEl.value) return
+  chart?.dispose()
   chart = echarts.init(chartEl.value)
 
   // 接口返回是按时间倒序（最新在前），图表从左到右要是正序
@@ -52,6 +53,8 @@ onMounted(async () => {
       getPerfList({ projectKey: 'demo_project_key_001', pageSize: 50 }),
     ])
     stats.value = statsRes.data.perf
+    // stats 控制卡片渲染，等待 Vue 挂载容器后再初始化图表。
+    await nextTick()
     renderChart(perfRes.data.list)
     window.addEventListener('resize', handleResize)
   } catch (error) {
