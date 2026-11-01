@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { login as loginRequest, logout as logoutRequest } from '../api/session'
+import { getSession, login as loginRequest, logout as logoutRequest } from '../api/session'
 
 export const currentUser = ref<{ username: string; role: 'admin' | 'viewer'; projectKey: string | null } | null>(null)
 export const sessionKnown = ref(false)
@@ -22,4 +22,15 @@ export async function signOut() {
 export function clearSession() {
   currentUser.value = null
   sessionKnown.value = false
+}
+
+export async function restoreSession() {
+  try {
+    currentUser.value = await getSession()
+    sessionKnown.value = true
+    return true
+  } catch {
+    clearSession()
+    return false
+  }
 }

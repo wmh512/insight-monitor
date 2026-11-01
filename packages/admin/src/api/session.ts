@@ -10,3 +10,8 @@ export async function login(username: string, password: string) {
 export async function logout() {
   await authApi.post('/api/auth/logout')
 }
+
+export async function getSession() {
+  const response = await authApi.get('/api/auth/session')
+  return response.data.data as { username: string; role: 'admin' | 'viewer'; projectKey: string | null }
+}

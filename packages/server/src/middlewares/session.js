@@ -68,12 +68,6 @@ export function createSessionAuth({ now = () => Date.now() } = {}) {
       ctx.body = { code: 401, message: '登录已失效，请重新登录' }
       return
     }
-    if (session.expiresAt <= now()) {
-      sessions.delete(token)
-      ctx.status = 401
-      ctx.body = { code: 401, message: '登录已失效，请重新登录' }
-      return
-    }
     // viewer 的过期时间由独立凭证决定，不能因为滑动续期而越过截止时间。
     session.expiresAt = Math.min(now() + SESSION_TTL_SECONDS * 1000, session.accountExpiresAt || Infinity)
     ctx.state.adminUsername = session.username
@@ -109,11 +103,6 @@ export async function login(ctx) {
     ctx.body = { code: 403, message: '请求来源无效' }
     return
   }
-  if (getToken(ctx) && sessions.has(getToken(ctx))) {
-    ctx.status = 401
-    ctx.body = { code: 401, message: '当前登录已失效，请重新登录' }
-    return
-  }
   const attempts = (loginAttempts.get(ctx.ip) ?? []).filter((time) => Date.now() - time < 60000)
   if (attempts.length >= 5) {
     ctx.status = 429
@@ -139,8 +128,8 @@ export async function login(ctx) {
     ctx.body = { code: 401, message: '用户名或密码错误' }
     return
   }
-  const previous = getToken(ctx)
-  sessions.delete(previous)
+  // 登录新账号成功后立即作废旧会话，避免一个浏览器同时持有两个身份。
+  sessions.delete(getToken(ctx))
   const token = randomBytes(32).toString('base64url')
   sessions.set(token, {
     username,
@@ -162,6 +151,16 @@ export async function logout(ctx) {
   sessions.delete(getToken(ctx))
   cookie(ctx, '', 0)
   ctx.body = { code: 0, message: '已退出登录' }
+}
+
+export async function currentSession(ctx) {
+  const session = sessions.get(getToken(ctx))
+  if (!session || session.expiresAt <= Date.now()) {
+    ctx.status = 401
+    ctx.body = { code: 401, message: '当前未登录' }
+    return
+  }
+  ctx.body = { code: 0, data: { username: session.username, role: session.role, projectKey: session.projectKey } }
 }
 
 export function resetSessions() {
