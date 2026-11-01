@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReportData } from '../types'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReportData } from '../types';
 
 /**
  * 队列测试策略：
@@ -8,14 +8,13 @@ import type { ReportData } from '../types'
  * jsdom 没有 sendBeacon，传输层会自动降级到 fetch，正好被我们控制。
  */
 
-let queueModule: typeof import('./queue')
-let fetchMock: ReturnType<typeof vi.fn>
+let queueModule: typeof import('./queue');
+let fetchMock: ReturnType<typeof vi.fn>;
 
 /** 等待 Promise 链全部跑完：一条链最多约 5 个微任务 tick，等 5 次保险 */
 async function flushPromises() {
   for (let i = 0; i < 5; i++) {
-    await Promise.resolve()
-
+    await Promise.resolve();
   }
 }
 
@@ -30,169 +29,184 @@ function makeData(type: 'error' | 'performance' = 'error'): ReportData {
     ...(type === 'error'
       ? { error: { kind: 'js' as const, message: 'boom', stack: '', fingerprint: 'fp-1' } }
       : { perf: { FP: 100, FCP: 200, LCP: 300 } }),
-  }
+  };
 }
 
 beforeEach(async () => {
-  vi.resetModules()
-  vi.useFakeTimers()
-  localStorage.clear()
-  fetchMock = vi.fn(() => Promise.resolve({}))
-  vi.stubGlobal('fetch', fetchMock)
+  vi.resetModules();
+  vi.useFakeTimers();
+  localStorage.clear();
+  fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ code: 0 }) }));
+  vi.stubGlobal('fetch', fetchMock);
 
-  const config = await import('../config')
+  const config = await import('../config');
   config.setOptions({
     projectId: 'test_project',
     reportUrl: 'http://localhost/api/report',
     maxQueueSize: 3, // 测试用小批量的门槛，3 条就发
     flushInterval: 1000,
-  })
-  queueModule = await import('./queue')
-})
+  });
+  queueModule = await import('./queue');
+});
 
 afterEach(() => {
-  vi.useRealTimers()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-})
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('report/queue 上报队列', () => {
   it('攒够 maxQueueSize 条自动整批发送', async () => {
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    expect(fetchMock).not.toHaveBeenCalled() // 2 条未满 3，不发
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    expect(fetchMock).not.toHaveBeenCalled(); // 2 条未满 3，不发
 
-    queueModule.add(makeData()) // 第 3 条，触发
-    await flushPromises()
+    queueModule.add(makeData()); // 第 3 条，触发
+    await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     // 第一批应该是 3 条（W9-a 起：body 是 { token, data }，数据在 data 里）
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body.data).toHaveLength(3)
-  })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.data).toHaveLength(3);
+  });
 
   it('flush 取出整批后队列清空，后续数据进下一批', async () => {
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    queueModule.add(makeData()) // 新数据，只有 1 条，不触发
-    await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(1) // 没有第二次发送
+    queueModule.add(makeData()); // 新数据，只有 1 条，不触发
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledTimes(1); // 没有第二次发送
 
-    queueModule.flush() // 手动强制发
-    await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    const body = JSON.parse(fetchMock.mock.calls[1][1].body as string)
-    expect(body.data).toHaveLength(1)
-  })
+    queueModule.flush(); // 手动强制发
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const body = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(body.data).toHaveLength(1);
+  });
 
   it('定时器到点强制发送（攒不满也发）', async () => {
-    queueModule.startQueue()
-    queueModule.add(makeData())
-    queueModule.add(makeData()) // 只有 2 条，不满批
+    queueModule.startQueue();
+    queueModule.add(makeData());
+    queueModule.add(makeData()); // 只有 2 条，不满批
 
-    await vi.advanceTimersByTimeAsync(1000) // 1 秒定时器到点
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
+    await vi.advanceTimersByTimeAsync(1000); // 1 秒定时器到点
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 
   it('发送失败时整批存入 localStorage', async () => {
-    fetchMock.mockRejectedValue(new Error('network error'))
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    await flushPromises()
-    await flushPromises() // 多等一轮微任务，让 .then 里的暂存逻辑跑完
+    fetchMock.mockRejectedValue(new Error('network error'));
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    await flushPromises();
+    await flushPromises(); // 多等一轮微任务，让 .then 里的暂存逻辑跑完
 
-    const stored = JSON.parse(localStorage.getItem('insight_failed_reports') ?? '[]')
-    expect(stored).toHaveLength(3)
-  })
+    const stored = JSON.parse(localStorage.getItem('insight_failed_reports') ?? '[]');
+    expect(stored).toHaveLength(3);
+  });
+
+  it('服务端拒绝时同样暂存，不能把 HTTP 400 当成功', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ code: 400 }),
+    });
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    await flushPromises();
+    await flushPromises();
+
+    const stored = JSON.parse(localStorage.getItem('insight_failed_reports') ?? '[]');
+    expect(stored).toHaveLength(3);
+  });
 
   it('startQueue 时补发 localStorage 中暂存的数据', async () => {
-    localStorage.setItem(
-      'insight_failed_reports',
-      JSON.stringify([makeData(), makeData()]),
-    )
-    queueModule.startQueue()
-    await flushPromises()
+    localStorage.setItem('insight_failed_reports', JSON.stringify([makeData(), makeData()]));
+    queueModule.startQueue();
+    await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body.data).toHaveLength(2)
-  })
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.data).toHaveLength(2);
+  });
 
   it('采样率为 0 时 performance 数据被丢弃，error 数据全收', async () => {
-    const config = await import('../config')
+    const config = await import('../config');
     config.setOptions({
       projectId: 'test_project',
       reportUrl: 'http://localhost/api/report',
       maxQueueSize: 3,
       perfSampleRate: 0,
-    })
-    vi.spyOn(Math, 'random').mockReturnValue(0.99) // 任意随机值，0 采样率下全丢
+    });
+    vi.spyOn(Math, 'random').mockReturnValue(0.99); // 任意随机值，0 采样率下全丢
 
-    queueModule.add(makeData('performance'))
-    queueModule.add(makeData('performance'))
-    queueModule.add(makeData('performance'))
-    queueModule.add(makeData('error'))
-    queueModule.add(makeData('error'))
-    queueModule.add(makeData('error'))
-    await flushPromises()
+    queueModule.add(makeData('performance'));
+    queueModule.add(makeData('performance'));
+    queueModule.add(makeData('performance'));
+    queueModule.add(makeData('error'));
+    queueModule.add(makeData('error'));
+    queueModule.add(makeData('error'));
+    await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1) // 只有 3 条 error 触发发送
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body.data.every((d: ReportData) => d.type === 'error')).toBe(true)
-  })
+    expect(fetchMock).toHaveBeenCalledTimes(1); // 只有 3 条 error 触发发送
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.data.every((d: ReportData) => d.type === 'error')).toBe(true);
+  });
 
   it('上报体包含 token 字段（W9-a 鉴权契约）', async () => {
-    const config = await import('../config')
+    const config = await import('../config');
     config.setOptions({
       projectId: 'test_project',
       reportUrl: 'http://localhost/api/report',
       maxQueueSize: 3,
       token: 'test-token-123',
-    })
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    await flushPromises()
+    });
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    await flushPromises();
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body.token).toBe('test-token-123') // token 走 body（sendBeacon 不支持自定义头）
-    expect(body.data).toHaveLength(3)
-  })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.token).toBe('test-token-123'); // token 走 body（sendBeacon 不支持自定义头）
+    expect(body.data).toHaveLength(3);
+  });
 
   it('脏数据容错：localStorage 里不是数组时按无暂存处理', async () => {
-    localStorage.setItem('insight_failed_reports', '这不是数组')
-    expect(() => queueModule.startQueue()).not.toThrow()
-    await flushPromises()
-    expect(fetchMock).not.toHaveBeenCalled() // 没有可补发的数据
-  })
+    localStorage.setItem('insight_failed_reports', '这不是数组');
+    expect(() => queueModule.startQueue()).not.toThrow();
+    await flushPromises();
+    expect(fetchMock).not.toHaveBeenCalled(); // 没有可补发的数据
+  });
 
   it('sendReport 同步抛异常时队列不卡死（R-01 异常防护回归）', async () => {
     // 让 fetch 同步炸（不是返回失败的 Promise，是直接 throw）——
     // 模拟 JSON.stringify 遇循环引用这类“没出门就倒下”的情况
     fetchMock.mockImplementation(() => {
-      throw new Error('sync boom')
-    })
+      throw new Error('sync boom');
+    });
 
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    await flushPromises()
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    await flushPromises();
 
     // ① 数据被兜底暂存，没丢
-    const stored = JSON.parse(localStorage.getItem('insight_failed_reports') ?? '[]')
-    expect(stored).toHaveLength(3)
+    const stored = JSON.parse(localStorage.getItem('insight_failed_reports') ?? '[]');
+    expect(stored).toHaveLength(3);
 
     // ② 队列已解锁：恢复正常后还能继续发（若 flushing 卡死，这里永远只有 1 次）
-    fetchMock.mockImplementation(() => Promise.resolve({}))
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    queueModule.add(makeData())
-    await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
-})
+    fetchMock.mockImplementation(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ code: 0 }) }),
+    );
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    queueModule.add(makeData());
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
