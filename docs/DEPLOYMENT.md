@@ -69,7 +69,8 @@ scp -r packages\sdk\demo              root@IP:/opt/insight/packages/sdk/
 ```bash
 cd /opt/insight/packages/server
 npm install --registry=https://registry.npmmirror.com
-# 写 .env（heredoc）：PORT / REPORT_TOKEN / MAX_BODY_BYTES / REPORT_RATE_LIMIT / CORS_ORIGINS / DB_* （注意 DB_USER=insight）
+# 写 .env（heredoc）：PORT / REPORT_TOKEN / ADMIN_USERNAME / ADMIN_PASSWORD / MAX_BODY_BYTES / REPORT_RATE_LIMIT / CORS_ORIGINS / DB_* （注意 DB_USER=insight）
+# 管理账号必须独立设置，不复用 REPORT_TOKEN；缺任一项时管理查询接口默认拒绝访问。
 pm2 start src/index.js --name insight-api
 pm2 logs insight-api --lines 10 --nostream   # 看到"监控服务端已启动"即点火成功
 ```
@@ -167,8 +168,9 @@ curl -s "http://localhost:3000/api/errors?projectKey=demo_project_key_001&pageSi
 
 ## 已知取舍（Roadmap）
 
-- **HTTPS/域名**：待域名备案（1-2 周）后配 Nginx + 证书；先用 IP + HTTP
-- **API 地址硬编码**：admin 的 `baseURL` 暂写死线上 IP，应改为环境变量注入；demo 已统一在 `demo/config.js` 配置。
+- **HTTPS/域名**：待域名备案后配 Nginx + 证书。管理接口采用 HTTP Basic Auth，凭证只是 Base64 编码、不是加密，正式环境必须使用 HTTPS。
+- **管理鉴权**：`/api/errors`、`/api/perf`、`/api/stats`、`/api/issues/*` 均要求 `Authorization: Basic ...`。浏览器收到 401 + `WWW-Authenticate` 后显示原生登录框；SDK 上报 `/api/report` 不经过此鉴权。
+- **API 地址**：admin 开发环境在 `packages/admin/.env` 配置 `VITE_API_BASE_URL=http://localhost:3000`；生产构建留空，使用同源 `/api`。
 - **SDK Demo**：`/sdk/demo/` 加载 `demo/config.js` 与 `/sdk/dist/insight.umd.js`；部署需同时更新 `dist` 和 `demo`，并确认 `reportUrl` 与服务端 `REPORT_TOKEN` 匹配。浏览器中的上报 token 是公开写入凭证，不是管理密码。
 - **上报 token** 为静态单值（写死在 demo 页中可见），生产级应项目级 token + 服务端存储
 - **请求安全**：默认单次 64 KiB、每批最多 20 条；按项目 + IP 每分钟最多 120 批。`CORS_ORIGINS` 配置允许的后台/SDK 浏览器来源（逗号分隔），无 Origin 的服务端请求不受影响。

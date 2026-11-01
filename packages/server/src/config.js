@@ -6,6 +6,10 @@ dotenv.config()
 const config = {
   port: Number(process.env.PORT ?? 3000),
   reportToken: process.env.REPORT_TOKEN ?? '',
+  admin: {
+    username: process.env.ADMIN_USERNAME ?? '',
+    password: process.env.ADMIN_PASSWORD ?? '',
+  },
   maxBodyBytes: Number(process.env.MAX_BODY_BYTES ?? 65536),
   reportRateLimit: Number(process.env.REPORT_RATE_LIMIT ?? 120),
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173')

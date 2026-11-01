@@ -20,6 +20,9 @@
 跨域浏览器来源通过 `CORS_ORIGINS` 白名单配置；CORS 不替代上报 token。
 3. **admin**：Vue3 + TypeScript 管理后台，提供错误列表 / 详情、性能看板
 
+管理查询与 issue 状态接口使用 HTTP Basic Auth。按 `packages/server/.env.example`
+配置独立管理员账号；管理密码不进入 admin 或 SDK 构建产物。正式部署必须同时启用 HTTPS。
+
 ## 仓库结构
 
 ```
@@ -66,7 +69,7 @@ pnpm install          # 安装依赖
 pnpm sdk:dev          # SDK 监听模式构建
 pnpm sdk:build        # SDK 生产构建
 pnpm sdk:test         # SDK 单元测试
-pnpm --filter @insight/server test  # 服务端请求安全测试
+pnpm --filter @insight/server test  # 服务端鉴权与请求安全测试
 pnpm lint             # ESLint 检查
 pnpm format           # Prettier 格式化
 ```
