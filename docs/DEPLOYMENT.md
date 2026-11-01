@@ -171,7 +171,7 @@ curl -s "http://localhost:3000/api/errors?projectKey=demo_project_key_001&pageSi
 - **HTTPS/域名**：待域名备案后配 Nginx + 证书。管理接口采用 HTTP Basic Auth，凭证只是 Base64 编码、不是加密，正式环境必须使用 HTTPS。
 - **管理鉴权**：`/api/errors`、`/api/perf`、`/api/stats`、`/api/issues/*` 均要求 `Authorization: Basic ...`。浏览器收到 401 + `WWW-Authenticate` 后显示原生登录框；SDK 上报 `/api/report` 不经过此鉴权。
 - **API 地址**：admin 开发环境在 `packages/admin/.env` 配置 `VITE_API_BASE_URL=http://localhost:3000`；生产构建留空，使用同源 `/api`。
-- **API 地址硬编码**：admin 的 `baseURL` 与 demo 的 `reportUrl` 暂写死线上 IP，应改为环境变量注入（dev=localhost / prod=相对路径走代理）
+- **SDK Demo**：`/sdk/demo/` 加载 `demo/config.js` 与 `/sdk/dist/insight.umd.js`；部署需同时更新 `dist` 和 `demo`，并确认 `reportUrl` 与服务端 `REPORT_TOKEN` 匹配。浏览器中的上报 token 是公开写入凭证，不是管理密码。
 - **上报 token** 为静态单值（写死在 demo 页中可见），生产级应项目级 token + 服务端存储
 - `today_errors` 类型已修复（`CAST(... AS UNSIGNED)`，2026-10-25 发版）
 - 无 CI/CD：手动 tar 部署 + restart，量级够用；上 GitHub Actions 是 P2

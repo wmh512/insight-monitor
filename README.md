@@ -70,3 +70,12 @@ pnpm --filter @insight/server test  # 服务端鉴权测试
 pnpm lint             # ESLint 检查
 pnpm format           # Prettier 格式化
 ```
+
+### SDK Demo 与接入契约
+
+1. 执行 `pnpm sdk:build`，生成 `packages/sdk/dist/insight.umd.js`。
+2. 按 `packages/sdk/demo/config.js` 配置 `projectId`、`reportUrl`、`token`。
+3. 部署目录保持为 `/sdk/demo/` 与 `/sdk/dist/`，打开 `/sdk/demo/`。
+
+原生 script 接入使用 `InsightSDK.init({ projectId, reportUrl, token })`。
+SDK 自动采集 JS / Promise / 资源错误与 FP / FCP / LCP；没有 `trackPageView()` 或 `track()` API。
