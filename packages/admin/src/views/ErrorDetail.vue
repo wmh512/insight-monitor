@@ -2,17 +2,22 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getErrorDetail } from '../api'
+import { notifyError } from '../utils/error'
 
 const route = useRoute() // 读 URL 里的 :id
 const router = useRouter() // 返回按钮用
 const detail = ref<Record<string, string> | null>(null)
 const loading = ref(false)
+const loadFailed = ref(false)
 
 onMounted(async () => {
   loading.value = true
   try {
     const res = await getErrorDetail(Number(route.params.id))
     detail.value = res.data
+  } catch (error) {
+    loadFailed.value = true
+    notifyError(error, '错误详情加载失败')
   } finally {
     loading.value = false
   }
@@ -36,6 +41,7 @@ onMounted(async () => {
       <h4>堆栈跟踪</h4>
       <pre>{{ detail.stack }}</pre>
     </div>
+    <el-result v-else-if="loadFailed" icon="error" title="详情加载失败" sub-title="请返回列表后重试" />
   </div>
 </template>
 

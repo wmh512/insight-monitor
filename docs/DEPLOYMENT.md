@@ -168,8 +168,8 @@ curl -s "http://localhost:3000/api/errors?projectKey=demo_project_key_001&pageSi
 
 ## 已知取舍（Roadmap）
 
-- **HTTPS/域名**：待域名备案后配 Nginx + 证书。管理接口采用 HTTP Basic Auth，凭证只是 Base64 编码、不是加密，正式环境必须使用 HTTPS。
-- **管理鉴权**：`/api/errors`、`/api/perf`、`/api/stats`、`/api/issues/*` 均要求 `Authorization: Basic ...`。浏览器收到 401 + `WWW-Authenticate` 后显示原生登录框；SDK 上报 `/api/report` 不经过此鉴权。
+- **HTTPS/域名**：待域名备案后配 Nginx + 证书。登录密码需要加密传输，正式环境必须使用 HTTPS；Nginx 必须保留 `X-Forwarded-Proto`，HTTPS 下会话 Cookie 自动带 `Secure`。
+- **管理鉴权**：`/api/auth/login` 校验管理员并签发 HttpOnly 会话 Cookie，查询接口校验会话，`/api/auth/logout` 销毁会话。会话保存在单进程内存中，重启后需重新登录；多实例部署需共享会话存储。SDK 上报 `/api/report` 不经过此鉴权。
 - **API 地址**：admin 开发环境在 `packages/admin/.env` 配置 `VITE_API_BASE_URL=http://localhost:3000`；生产构建留空，使用同源 `/api`。
 - **SDK Demo**：`/sdk/demo/` 加载 `demo/config.js` 与 `/sdk/dist/insight.umd.js`；部署需同时更新 `dist` 和 `demo`，并确认 `reportUrl` 与服务端 `REPORT_TOKEN` 匹配。浏览器中的上报 token 是公开写入凭证，不是管理密码。
 - **上报 token** 为静态单值（写死在 demo 页中可见），生产级应项目级 token + 服务端存储

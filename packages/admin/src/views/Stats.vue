@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getStats } from '../api'
+import { notifyError } from '../utils/error'
 
 interface Stats {
   total_errors: number
@@ -9,10 +10,16 @@ interface Stats {
 }
 
 const stats = ref<Stats | null>(null)
+const loadFailed = ref(false)
 
 onMounted(async () => {
-  const res = await getStats('demo_project_key_001')
-  stats.value = res.data
+  try {
+    const res = await getStats('demo_project_key_001')
+    stats.value = res.data
+  } catch (error) {
+    loadFailed.value = true
+    notifyError(error, '概览统计加载失败')
+  }
 })
 </script>
 
@@ -46,6 +53,7 @@ onMounted(async () => {
       </div>
     </el-card>
   </div>
+  <el-result v-else-if="loadFailed" icon="error" title="统计加载失败" sub-title="请稍后刷新重试" />
 </template>
 
 <style scoped>
