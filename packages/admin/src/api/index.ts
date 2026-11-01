@@ -1,5 +1,6 @@
 import axios from 'axios'
 import router from '../router'
+import { clearSession } from '../stores/session'
 
 // 开发环境直连本机 API；生产环境默认同源，由 Nginx 将 /api 转发给 Koa。
 const api = axios.create({
@@ -12,6 +13,7 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401 && router.currentRoute.value.name !== 'login') {
+      clearSession()
       void router.replace({ name: 'login', query: { expired: '1' } })
     }
     return Promise.reject(error)

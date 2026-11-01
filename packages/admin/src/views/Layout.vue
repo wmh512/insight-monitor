@@ -2,7 +2,7 @@
 import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { logout } from '../api/session'
+import { currentUser, signOut as clearServerSession } from '../stores/session'
 import { notifyError } from '../utils/error'
 
 const route = useRoute()
@@ -10,11 +10,12 @@ const router = useRouter()
 
 async function signOut() {
   try {
-    await logout()
-    await router.replace('/login')
-    ElMessage.success('已安全退出')
+    await clearServerSession()
   } catch (error) {
-    notifyError(error, '退出失败，请稍后重试')
+    notifyError(error, '服务器退出确认失败，本地登录状态已清除')
+  } finally {
+    await router.replace('/login')
+    ElMessage.success('已退出当前账号')
   }
 }
 </script>
@@ -30,8 +31,9 @@ async function signOut() {
       </el-menu>
     </aside>
     <div class="main">
-      <header class="header"><span>监控后台</span><el-button text @click="signOut">退出登录</el-button></header>
+      <header class="header"><span>监控后台</span><div class="account"><el-tag v-if="currentUser?.role === 'viewer'" type="info">只读演示</el-tag><el-button text @click="signOut">退出登录</el-button></div></header>
       <div class="content">
+        <el-alert v-if="currentUser?.role === 'viewer'" title="当前为只读演示账号，可查看错误和性能数据，不能修改状态。" type="info" :closable="false" show-icon class="viewer-notice" />
         <router-view />
       </div>
     </div>
@@ -45,4 +47,6 @@ async function signOut() {
 .main { flex: 1; display: flex; flex-direction: column; background: #f0f2f5; }
 .header { height: 60px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 18px; }
 .content { padding: 24px; flex: 1; overflow: auto; }
+.account { display: flex; align-items: center; gap: 12px; }
+.viewer-notice { margin-bottom: 16px; }
 </style>

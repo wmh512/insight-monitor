@@ -4,6 +4,7 @@ import { getErrorList, setIssueStatus, type ErrorListItem, type IssueStatus } fr
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { notifyError } from '../utils/error'
+import { currentUser } from '../stores/session'
 
 const list = ref<ErrorListItem[]>([])
 const total = ref(0)
@@ -86,7 +87,7 @@ onMounted(load)
       <el-table-column label="最近出现" width="170">
         <template #default="{ row }">{{ new Date(row.last_seen).toLocaleString() }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="120">
+      <el-table-column v-if="currentUser?.role !== 'viewer'" label="操作" width="120">
         <template #default="{ row }">
           <!-- @click.stop：阻止冒泡，否则点按钮会同时触发整行的跳转 -->
           <el-button size="small" text type="primary" :loading="updatingFingerprint === row.fingerprint" :disabled="Boolean(updatingFingerprint)" @click.stop="toggleStatus(row)">

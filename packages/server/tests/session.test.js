@@ -3,13 +3,14 @@ import { test } from 'node:test'
 import Koa from 'koa'
 import Router from '@koa/router'
 import config from '../src/config.js'
-import { login, logout, adminAuth, resetSessions } from '../src/middlewares/session.js'
+import { currentSession, login, logout, adminAuth, resetSessions } from '../src/middlewares/session.js'
 
 function createApp() {
   const app = new Koa()
   const router = new Router()
   router.post('/api/auth/login', login)
   router.post('/api/auth/logout', logout)
+  router.get('/api/auth/session', currentSession)
   router.get('/api/errors', adminAuth, (ctx) => { ctx.body = { code: 0 } })
   app.use(router.routes())
   return app.listen(0)
@@ -45,6 +46,16 @@ test('登录流程：错误密码有明确 401，正确登录建立 HttpOnly 会
   const out = await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { Cookie: session } })
   assert.match(out.headers.get('set-cookie'), /Max-Age=0/)
   assert.equal((await fetch(`${base}/api/errors`, { headers: { Cookie: session } })).status, 401)
+
+  const first = await fetch(`${base}/api/auth/login`, { method: 'POST', body: JSON.stringify({ username: 'reviewer', password: 'test-only-password' }) })
+  const oldCookie = first.headers.get('set-cookie').split(';')[0]
+  const identity = await fetch(`${base}/api/auth/session`, { headers: { Cookie: oldCookie } })
+  assert.equal(identity.status, 200)
+  const second = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { Cookie: oldCookie }, body: JSON.stringify({ username: 'reviewer', password: 'test-only-password' }) })
+  assert.equal(second.status, 200, '已登录用户切换账号不应被误报为会话失效')
+  assert.equal((await fetch(`${base}/api/errors`, { headers: { Cookie: oldCookie } })).status, 401)
+  const newCookie = second.headers.get('set-cookie').split(';')[0]
+  assert.equal((await fetch(`${base}/api/errors`, { headers: { Cookie: newCookie } })).status, 200)
 })
 
 test('登录流程：跨站请求拒绝，失败次数受限', async (t) => {

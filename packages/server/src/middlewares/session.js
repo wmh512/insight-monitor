@@ -45,6 +45,18 @@ function cookie(ctx, value, maxAge) {
   ctx.set('Set-Cookie', `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`)
 }
 
+function activeAccount(username, password) {
+  const adminValid = config.admin.username && config.admin.password &&
+    safeEqual(username, config.admin.username) && safeEqual(password, config.admin.password)
+  if (adminValid) return { username, role: 'admin', projectKey: null, expiresAt: 0 }
+  const viewer = config.viewer
+  const viewerValid = viewer.username && viewer.password && viewer.projectKey && viewer.expiresAt > Date.now() &&
+    safeEqual(username, viewer.username) && safeEqual(password, viewer.password)
+  return viewerValid
+    ? { username, role: 'viewer', projectKey: viewer.projectKey, expiresAt: viewer.expiresAt }
+    : null
+}
+
 export function createSessionAuth({ now = () => Date.now() } = {}) {
   return async function adminAuth(ctx, next) {
     const token = getToken(ctx)
@@ -56,10 +68,31 @@ export function createSessionAuth({ now = () => Date.now() } = {}) {
       ctx.body = { code: 401, message: '登录已失效，请重新登录' }
       return
     }
-    session.expiresAt = now() + SESSION_TTL_SECONDS * 1000
+    // viewer 的过期时间由独立凭证决定，不能因为滑动续期而越过截止时间。
+    session.expiresAt = Math.min(now() + SESSION_TTL_SECONDS * 1000, session.accountExpiresAt || Infinity)
     ctx.state.adminUsername = session.username
+    ctx.state.role = session.role
+    ctx.state.projectKey = session.projectKey
     await next()
   }
+}
+
+export function requireAdmin(ctx, next) {
+  if (ctx.state.role !== 'admin') {
+    ctx.status = 403
+    ctx.body = { code: 403, message: '只读演示账号不能修改数据' }
+    return
+  }
+  return next()
+}
+
+export function requireProjectAccess(ctx, next) {
+  if (ctx.state.role === 'viewer' && ctx.query.projectKey !== ctx.state.projectKey) {
+    ctx.status = 403
+    ctx.body = { code: 403, message: '只读演示账号无权访问该项目' }
+    return
+  }
+  return next()
 }
 
 export const adminAuth = createSessionAuth()
@@ -68,11 +101,6 @@ export async function login(ctx) {
   if (!isSameOrigin(ctx)) {
     ctx.status = 403
     ctx.body = { code: 403, message: '请求来源无效' }
-    return
-  }
-  if (getToken(ctx) && sessions.has(getToken(ctx))) {
-    ctx.status = 401
-    ctx.body = { code: 401, message: '当前登录已失效，请重新登录' }
     return
   }
   const attempts = (loginAttempts.get(ctx.ip) ?? []).filter((time) => Date.now() - time < 60000)
@@ -92,22 +120,26 @@ export async function login(ctx) {
   }
   const username = typeof body?.username === 'string' ? body.username : ''
   const password = typeof body?.password === 'string' ? body.password : ''
-  const valid = config.admin.username.length > 0 && config.admin.password.length > 0 &&
-    username.length <= 128 && password.length <= 256 &&
-    safeEqual(username, config.admin.username) && safeEqual(password, config.admin.password)
-  if (!valid) {
+  const account = username.length <= 128 && password.length <= 256 ? activeAccount(username, password) : null
+  if (!account) {
     attempts.push(Date.now())
     loginAttempts.set(ctx.ip, attempts)
     ctx.status = 401
     ctx.body = { code: 401, message: '用户名或密码错误' }
     return
   }
-  const previous = getToken(ctx)
-  sessions.delete(previous)
+  // 登录新账号成功后立即作废旧会话，避免一个浏览器同时持有两个身份。
+  sessions.delete(getToken(ctx))
   const token = randomBytes(32).toString('base64url')
-  sessions.set(token, { username, expiresAt: Date.now() + SESSION_TTL_SECONDS * 1000 })
+  sessions.set(token, {
+    username,
+    role: account.role,
+    projectKey: account.projectKey,
+    accountExpiresAt: account.expiresAt,
+    expiresAt: Math.min(Date.now() + SESSION_TTL_SECONDS * 1000, account.expiresAt || Infinity),
+  })
   cookie(ctx, token, SESSION_TTL_SECONDS)
-  ctx.body = { code: 0, data: { username } }
+  ctx.body = { code: 0, data: { username, role: account.role, projectKey: account.projectKey } }
 }
 
 export async function logout(ctx) {
@@ -119,6 +151,16 @@ export async function logout(ctx) {
   sessions.delete(getToken(ctx))
   cookie(ctx, '', 0)
   ctx.body = { code: 0, message: '已退出登录' }
+}
+
+export async function currentSession(ctx) {
+  const session = sessions.get(getToken(ctx))
+  if (!session || session.expiresAt <= Date.now()) {
+    ctx.status = 401
+    ctx.body = { code: 401, message: '当前未登录' }
+    return
+  }
+  ctx.body = { code: 0, data: { username: session.username, role: session.role, projectKey: session.projectKey } }
 }
 
 export function resetSessions() {

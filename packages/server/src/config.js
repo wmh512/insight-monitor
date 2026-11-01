@@ -10,6 +10,12 @@ const config = {
     username: process.env.ADMIN_USERNAME ?? '',
     password: process.env.ADMIN_PASSWORD ?? '',
   },
+  viewer: {
+    username: process.env.VIEWER_USERNAME ?? '',
+    password: process.env.VIEWER_PASSWORD ?? '',
+    projectKey: process.env.VIEWER_PROJECT_KEY ?? '',
+    expiresAt: Date.parse(process.env.VIEWER_EXPIRES_AT ?? '') || 0,
+  },
   maxBodyBytes: Number(process.env.MAX_BODY_BYTES ?? 65536),
   reportRateLimit: Number(process.env.REPORT_RATE_LIMIT ?? 120),
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173')
