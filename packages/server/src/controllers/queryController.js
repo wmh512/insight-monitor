@@ -131,7 +131,8 @@ export async function updateIssueStatus(ctx) {
   let body
   try {
     body = JSON.parse(await getRawBody(ctx))
-  } catch {
+  } catch (err) {
+    if (err.message === 'BODY_TOO_LARGE') throw err
     ctx.status = 400
     ctx.body = { code: 400, message: '请求体不是合法的 JSON' }
     return
@@ -160,7 +161,7 @@ export async function updateIssueStatus(ctx) {
 
 /**
  * GET /api/stats?projectKey=xxx —— 概览统计
- */export async function getStats(ctx) {
+ */ export async function getStats(ctx) {
   const { projectKey } = ctx.query
   if (!projectKey) {
     ctx.status = 400
