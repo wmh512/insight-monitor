@@ -168,7 +168,8 @@ curl -s "http://localhost:3000/api/errors?projectKey=demo_project_key_001&pageSi
 ## 已知取舍（Roadmap）
 
 - **HTTPS/域名**：待域名备案（1-2 周）后配 Nginx + 证书；先用 IP + HTTP
-- **API 地址硬编码**：admin 的 `baseURL` 与 demo 的 `reportUrl` 暂写死线上 IP，应改为环境变量注入（dev=localhost / prod=相对路径走代理）
+- **API 地址硬编码**：admin 的 `baseURL` 暂写死线上 IP，应改为环境变量注入；demo 已统一在 `demo/config.js` 配置。
+- **SDK Demo**：`/sdk/demo/` 加载 `demo/config.js` 与 `/sdk/dist/insight.umd.js`；部署需同时更新 `dist` 和 `demo`，并确认 `reportUrl` 与服务端 `REPORT_TOKEN` 匹配。浏览器中的上报 token 是公开写入凭证，不是管理密码。
 - **上报 token** 为静态单值（写死在 demo 页中可见），生产级应项目级 token + 服务端存储
 - **请求安全**：默认单次 64 KiB、每批最多 20 条；按项目 + IP 每分钟最多 120 批。`CORS_ORIGINS` 配置允许的后台/SDK 浏览器来源（逗号分隔），无 Origin 的服务端请求不受影响。
 - **限流边界**：当前为单进程内存滑动窗口，重启清零；多实例部署需使用 Redis 等共享存储，不能声称已具备分布式限流。

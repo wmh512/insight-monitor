@@ -1,6 +1,6 @@
-import type { ReportData } from '../types'
-import { getOptions } from '../config'
-import { debugLog } from '../utils/safe'
+import type { ReportData } from '../types';
+import { getOptions } from '../config';
+import { debugLog } from '../utils/safe';
 
 /**
  * 传输层：把一批数据发到服务端
@@ -25,24 +25,24 @@ import { debugLog } from '../utils/safe'
  * @returns Promise<boolean> true = 投递成功；false = 失败（队列会存入 localStorage 重发）
  */
 export function sendReport(payload: ReportData[]): Promise<boolean> {
-  const { reportUrl, token } = getOptions()
+  const { reportUrl, token } = getOptions();
   // W9-a：token 包进 body 而不是请求头——sendBeacon 不支持自定义头，
   // 而页面关闭时的可靠投递是硬需求；两套传输方式因此统一
-  const body = JSON.stringify({ token, data: payload })
+  const body = JSON.stringify({ token, data: payload });
 
   // ---- 优先 sendBeacon ----
   if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
     try {
       // sendBeacon 是同步方法：返回 true = 浏览器已接收投递请求（不代表服务端收到）
-      const queued = navigator.sendBeacon(reportUrl, body)
+      const queued = navigator.sendBeacon(reportUrl, body);
       if (queued) {
-        debugLog(`sendBeacon 投递成功，条数: ${payload.length}`)
-        return Promise.resolve(true)
+        debugLog(`sendBeacon 投递成功，条数: ${payload.length}`);
+        return Promise.resolve(true);
       }
       // 返回 false：浏览器拒绝（通常是数据超过 sendBeacon 大小上限，约 64KB）
-      debugLog('sendBeacon 被拒绝（可能超限），降级 fetch')
+      debugLog('sendBeacon 被拒绝（可能超限），降级 fetch');
     } catch {
-      debugLog('sendBeacon 抛错，降级 fetch')
+      debugLog('sendBeacon 抛错，降级 fetch');
     }
   }
 
@@ -53,6 +53,11 @@ export function sendReport(payload: ReportData[]): Promise<boolean> {
     body,
     keepalive: true, // fetch 版的“准 beacon”：页面卸载后请求继续
   })
-    .then(() => true)
-    .catch(() => false)
+    .then(async (response) => {
+      // HTTP 请求完成不等于服务端已接收：400/401/500 都必须进入失败重试。
+      if (!response.ok) return false;
+      const result = (await response.json()) as { code?: number };
+      return result.code === 0;
+    })
+    .catch(() => false);
 }
