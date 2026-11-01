@@ -15,6 +15,9 @@
 
 1. **insight-sdk**：零依赖 TypeScript SDK，采集 JS / Promise / 资源三类错误与 FP / FCP / LCP 性能指标，支持批量上报、失败重发
 2. **server**：Node.js（Koa2）服务端，负责上报接收、数据聚合、SourceMap 还原
+
+服务端对单次上报限制 64 KiB / 20 条，校验项目与错误/性能字段，并按项目和 IP 限流。
+跨域浏览器来源通过 `CORS_ORIGINS` 白名单配置；CORS 不替代上报 token。
 3. **admin**：Vue3 + TypeScript 管理后台，提供错误列表 / 详情、性能看板
 
 管理查询与 issue 状态接口使用 HTTP Basic Auth。按 `packages/server/.env.example`
@@ -66,7 +69,7 @@ pnpm install          # 安装依赖
 pnpm sdk:dev          # SDK 监听模式构建
 pnpm sdk:build        # SDK 生产构建
 pnpm sdk:test         # SDK 单元测试
-pnpm --filter @insight/server test  # 服务端鉴权测试
+pnpm --filter @insight/server test  # 服务端鉴权与请求安全测试
 pnpm lint             # ESLint 检查
 pnpm format           # Prettier 格式化
 ```

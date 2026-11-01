@@ -1,5 +1,6 @@
 import { pool } from '../db/pool.js'
 import { decideNotification, notifyIssue } from '../utils/notifier.js'
+import { validateReportBatch } from '../utils/validateReport.js'
 
 /**
  * POST /api/report 上报接口
@@ -12,9 +13,10 @@ export async function handleReport(ctx) {
   const list = ctx.state.reportData
 
   // ---- 1. 校验 data 必须是非空数组 ----
-  if (!Array.isArray(list) || list.length === 0) {
+  const validationError = validateReportBatch(list)
+  if (validationError) {
     ctx.status = 400
-    ctx.body = { code: 400, message: 'data 必须是非空数组' }
+    ctx.body = { code: 400, message: validationError }
     return
   }
 
