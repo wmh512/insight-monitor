@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 
-let sessionKnown = false
+import { sessionKnown } from '../stores/session'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -25,10 +25,10 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   document.title = `${to.meta.title || '管理后台'} · Insight 监控`
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
-  if (sessionKnown) return true
+  if (sessionKnown.value) return true
   try {
     await axios.get('/api/stats', { params: { projectKey: 'demo_project_key_001' } })
-    sessionKnown = true
+    sessionKnown.value = true
     return true
   } catch {
     return { name: 'login', query: { redirect: to.fullPath } }
@@ -36,7 +36,7 @@ router.beforeEach(async (to) => {
 })
 
 router.afterEach((to) => {
-  if (to.name === 'login') sessionKnown = false
+  if (to.name === 'login') sessionKnown.value = false
 })
 
 export default router

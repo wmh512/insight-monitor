@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login } from '../api/session'
+import { signIn } from '../stores/session'
 import { notifyError } from '../utils/error'
 
 const route = useRoute()
@@ -14,7 +14,7 @@ async function submit() {
   if (!form.username.trim() || !form.password || submitting.value) return
   submitting.value = true
   try {
-    await login(form.username.trim(), form.password)
+    await signIn(form.username.trim(), form.password)
     ElMessage.success('登录成功，欢迎回来')
     const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
       ? route.query.redirect

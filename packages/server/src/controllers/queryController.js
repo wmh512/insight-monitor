@@ -65,10 +65,15 @@ export async function getErrorDetail(ctx) {
     return
   }
 
+  const params = [id]
+  const projectRestriction = ctx.state.role === 'viewer' ? 'AND p.project_key = ?' : ''
+  if (ctx.state.role === 'viewer') params.push(ctx.state.projectKey)
   const [rows] = await pool.execute(
-    `SELECT id, kind, message, stack, page_url, ua, created_at
-     FROM error_report WHERE id = ?`,
-    [id],
+    `SELECT e.id, e.kind, e.message, e.stack, e.page_url, e.ua, e.created_at
+     FROM error_report e
+     JOIN project p ON e.project_id = p.id
+     WHERE e.id = ? ${projectRestriction}`,
+    params,
   )
   if (rows.length === 0) {
     ctx.status = 404
