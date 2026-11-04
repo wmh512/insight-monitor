@@ -1,5 +1,6 @@
 import { pool } from '../db/pool.js'
 import { getRawBody } from '../utils/rawBody.js'
+import { recordAudit } from '../services/auditService.js'
 
 /**
  * GET /api/errors?projectKey=xxx&page=1&pageSize=20
@@ -150,15 +151,34 @@ export async function updateIssueStatus(ctx) {
     return
   }
 
-  const [result] = await pool.execute(
-    `UPDATE issue SET resolved_at = ?, status = ? WHERE fingerprint = ?`,
-    [status === 'resolved' ? new Date() : null, status, fingerprint],
-  )
-
-  if (result.affectedRows === 0) {
-    ctx.status = 404
-    ctx.body = { code: 404, message: `issue 不存在: ${fingerprint}` }
-    return
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const [rows] = await connection.execute('SELECT status FROM issue WHERE fingerprint = ? FOR UPDATE', [fingerprint])
+    if (rows.length === 0) {
+      await recordAudit(connection, {
+        category: 'operation', eventType: 'issue.status.update', ctx, username: ctx.state.adminUsername,
+        result: 'failure', failureReason: 'not_found', targetType: 'issue', targetId: fingerprint,
+      })
+      await connection.commit()
+      ctx.status = 404
+      ctx.body = { code: 404, message: `issue 不存在: ${fingerprint}` }
+      return
+    }
+    await connection.execute(
+      'UPDATE issue SET resolved_at = ?, status = ? WHERE fingerprint = ?',
+      [status === 'resolved' ? new Date() : null, status, fingerprint],
+    )
+    await recordAudit(connection, {
+      category: 'operation', eventType: 'issue.status.update', ctx, username: ctx.state.adminUsername,
+      targetType: 'issue', targetId: fingerprint, changes: { status: { from: rows[0].status, to: status } },
+    })
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
   }
 
   ctx.body = { code: 0, data: { fingerprint, status } }

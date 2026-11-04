@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import config from '../config.js'
 import { getRawBody } from '../utils/rawBody.js'
+import { recordAudit } from '../services/auditService.js'
 
 const COOKIE_NAME = 'insight_admin_session'
 const SESSION_TTL_SECONDS = 8 * 60 * 60
@@ -122,6 +123,7 @@ export async function login(ctx) {
   const password = typeof body?.password === 'string' ? body.password : ''
   const account = username.length <= 128 && password.length <= 256 ? activeAccount(username, password) : null
   if (!account) {
+    await recordAudit(undefined, { category: 'auth', eventType: 'login', ctx, username, result: 'failure', failureReason: 'invalid_credentials' })
     attempts.push(Date.now())
     loginAttempts.set(ctx.ip, attempts)
     ctx.status = 401
@@ -139,6 +141,7 @@ export async function login(ctx) {
     expiresAt: Math.min(Date.now() + SESSION_TTL_SECONDS * 1000, account.expiresAt || Infinity),
   })
   cookie(ctx, token, SESSION_TTL_SECONDS)
+  await recordAudit(undefined, { category: 'auth', eventType: 'login', ctx, username })
   ctx.body = { code: 0, data: { username, role: account.role, projectKey: account.projectKey } }
 }
 
@@ -148,7 +151,9 @@ export async function logout(ctx) {
     ctx.body = { code: 403, message: '请求来源无效' }
     return
   }
+  const session = sessions.get(getToken(ctx))
   sessions.delete(getToken(ctx))
+  await recordAudit(undefined, { category: 'auth', eventType: 'logout', ctx, username: session?.username ?? '' })
   cookie(ctx, '', 0)
   ctx.body = { code: 0, message: '已退出登录' }
 }

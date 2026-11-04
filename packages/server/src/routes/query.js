@@ -9,6 +9,7 @@ import {
 import { adminAuth } from '../middlewares/auth.js'
 import { requireAdmin, requireProjectAccess } from '../middlewares/session.js'
 import { currentSession, login, logout } from '../middlewares/session.js'
+import { listLoginAudit, listOperationAudit } from '../controllers/auditController.js'
 
 const router = new Router()
 
@@ -21,5 +22,7 @@ router.get('/api/stats', adminAuth, requireProjectAccess, getStats)
 router.get('/api/perf', adminAuth, requireProjectAccess, getPerfList)
 // issue 生命周期：标记已解决 / 重新打开
 router.patch('/api/issues/:fingerprint', adminAuth, requireAdmin, updateIssueStatus)
+router.get('/api/audit/login', adminAuth, requireAdmin, listLoginAudit)
+router.get('/api/audit/operations', adminAuth, requireAdmin, listOperationAudit)
 
 export default router

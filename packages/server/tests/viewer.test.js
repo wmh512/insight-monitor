@@ -17,11 +17,16 @@ function setup(t) {
   const queries = []
   const originalQuery = pool.query
   const originalExecute = pool.execute
+  const originalGetConnection = pool.getConnection
   pool.query = async (sql, params) => { queries.push({ sql, params }); return [[{ total: 0 }]] }
   pool.execute = async (sql, params) => {
     queries.push({ sql, params })
     return sql.startsWith('UPDATE issue') ? [{ affectedRows: 0 }] : [[]]
   }
+  pool.getConnection = async () => ({
+    beginTransaction: async () => {}, commit: async () => {}, rollback: async () => {}, release: () => {},
+    execute: async (sql, params) => { queries.push({ sql, params }); return [sql.startsWith('UPDATE issue') ? { affectedRows: 0 } : []] },
+  })
   const app = new Koa()
   app.use(queryRouter.routes())
   const server = app.listen(0)
@@ -30,6 +35,7 @@ function setup(t) {
     Object.assign(config.viewer, original.viewer)
     pool.query = originalQuery
     pool.execute = originalExecute
+    pool.getConnection = originalGetConnection
     resetSessions()
     server.close()
   })

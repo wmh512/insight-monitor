@@ -28,6 +28,10 @@ async function signOut() {
         <el-menu-item index="/errors">错误列表</el-menu-item>
         <el-menu-item index="/stats">概览统计</el-menu-item>
         <el-menu-item index="/perf">性能看板</el-menu-item>
+        <template v-if="currentUser?.role === 'admin'">
+          <el-menu-item index="/audit/login">访问记录</el-menu-item>
+          <el-menu-item index="/audit/operations">操作审计</el-menu-item>
+        </template>
       </el-menu>
     </aside>
     <div class="main">

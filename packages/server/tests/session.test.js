@@ -4,6 +4,7 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import config from '../src/config.js'
 import { currentSession, login, logout, adminAuth, resetSessions } from '../src/middlewares/session.js'
+import { pool } from '../src/db/pool.js'
 
 function createApp() {
   const app = new Koa()
@@ -16,7 +17,14 @@ function createApp() {
   return app.listen(0)
 }
 
+function mockAudit(t) {
+  const original = pool.execute
+  pool.execute = async () => [{ insertId: 1 }]
+  t.after(() => { pool.execute = original })
+}
+
 test('登录流程：错误密码有明确 401，正确登录建立 HttpOnly 会话', async (t) => {
+  mockAudit(t)
   resetSessions()
   const original = { ...config.admin }
   Object.assign(config.admin, { username: 'reviewer', password: 'test-only-password' })
@@ -59,6 +67,7 @@ test('登录流程：错误密码有明确 401，正确登录建立 HttpOnly 会
 })
 
 test('登录流程：跨站请求拒绝，失败次数受限', async (t) => {
+  mockAudit(t)
   resetSessions()
   const original = { ...config.admin }
   Object.assign(config.admin, { username: 'reviewer', password: 'test-only-password' })

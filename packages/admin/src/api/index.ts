@@ -3,7 +3,7 @@ import router from '../router'
 import { clearSession } from '../stores/session'
 
 // 开发环境直连本机 API；生产环境默认同源，由 Nginx 将 /api 转发给 Koa。
-const api = axios.create({
+export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
 })
