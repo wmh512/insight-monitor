@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { getStats } from '../api'
 import { notifyError } from '../utils/error'
+import { selectedProject } from '../stores/project'
 
 interface Stats {
   total_errors: number
@@ -12,15 +13,17 @@ interface Stats {
 const stats = ref<Stats | null>(null)
 const loadFailed = ref(false)
 
-onMounted(async () => {
+async function load() {
   try {
-    const res = await getStats('demo_project_key_001')
+    const res = await getStats(selectedProject.value)
     stats.value = res.data
   } catch (error) {
     loadFailed.value = true
     notifyError(error, '概览统计加载失败')
   }
-})
+}
+onMounted(load)
+watch(selectedProject, load)
 </script>
 
 <template>

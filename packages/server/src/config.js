@@ -6,15 +6,10 @@ dotenv.config()
 const config = {
   port: Number(process.env.PORT ?? 3000),
   reportToken: process.env.REPORT_TOKEN ?? '',
+  reportTokens: process.env.REPORT_TOKENS_JSON ?? '',
   admin: {
     username: process.env.ADMIN_USERNAME ?? '',
     password: process.env.ADMIN_PASSWORD ?? '',
-  },
-  viewer: {
-    username: process.env.VIEWER_USERNAME ?? '',
-    password: process.env.VIEWER_PASSWORD ?? '',
-    projectKey: process.env.VIEWER_PROJECT_KEY ?? '',
-    expiresAt: Date.parse(process.env.VIEWER_EXPIRES_AT ?? '') || 0,
   },
   maxBodyBytes: Number(process.env.MAX_BODY_BYTES ?? 65536),
   reportRateLimit: Number(process.env.REPORT_RATE_LIMIT ?? 120),

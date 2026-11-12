@@ -176,13 +176,10 @@ curl -s "http://localhost:3000/api/errors?projectKey=demo_project_key_001&pageSi
 - **请求安全**：默认单次 64 KiB、每批最多 20 条；按项目 + IP 每分钟最多 120 批。`CORS_ORIGINS` 配置允许的后台/SDK 浏览器来源（逗号分隔），无 Origin 的服务端请求不受影响。
 - **限流边界**：当前为单进程内存滑动窗口，重启清零；多实例部署需使用 Redis 等共享存储，不能声称已具备分布式限流。
 
-## 面试官只读演示
+## 个人作品集接入
 
-1. 先确认 `interview_demo_project` 未被占用，再备份数据库并执行 `docs/demo-viewer-data.sql`。该脚本只插入虚构、脱敏的演示项目与数据。
-2. 在服务端 `.env` 设置 `VIEWER_USERNAME`、独立强密码 `VIEWER_PASSWORD`、`VIEWER_PROJECT_KEY=interview_demo_project` 和 `VIEWER_EXPIRES_AT`（ISO 8601 时间）。未配置完整或已过期时 viewer 自动禁用。
-3. `pm2 restart insight-api --update-env` 后，使用 viewer 登录验证只读提示和演示数据；直接请求 issue PATCH 必须返回 403，查询其他项目必须返回 403。
-4. 使用管理员登录确认原有修改功能正常。不得把真实项目 key 配置为 viewer 项目，也不得分享真实管理员密码。
-5. 对外展示前先启用 HTTPS。展示结束后清空 viewer 配置或修改到期时间，再重启使撤销生效。
+作品集已按现有 SDK 契约接入独立监控项目，详见 `PORTFOLIO_MONITORING.md`。
+旧虚构演示项目及 viewer 方案已移除，不再作为部署步骤。
 - `today_errors` 类型已修复（`CAST(... AS UNSIGNED)`，2026-10-25 发版）
 - 无 CI/CD：手动 tar 部署 + restart，量级够用；上 GitHub Actions 是 P2
 

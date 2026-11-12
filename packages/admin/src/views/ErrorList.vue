@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { getErrorList, setIssueStatus, type ErrorListItem, type IssueStatus } from '../api'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { notifyError } from '../utils/error'
-import { currentUser } from '../stores/session'
+import { selectedProject } from '../stores/project'
 
 const list = ref<ErrorListItem[]>([])
 const total = ref(0)
@@ -26,7 +26,7 @@ async function load() {
   loadFailed.value = false
   try {
     const res = await getErrorList({
-      projectKey: 'demo_project_key_001',
+      projectKey: selectedProject.value,
       page: page.value,
       pageSize: pageSize.value,
     })
@@ -64,6 +64,7 @@ async function toggleStatus(row: ErrorListItem) {
 }
 
 onMounted(load)
+watch(selectedProject, () => { page.value = 1; void load() })
 </script>
 
 <template>
@@ -87,7 +88,7 @@ onMounted(load)
       <el-table-column label="最近出现" width="170">
         <template #default="{ row }">{{ new Date(row.last_seen).toLocaleString() }}</template>
       </el-table-column>
-      <el-table-column v-if="currentUser?.role !== 'viewer'" label="操作" width="120">
+      <el-table-column label="操作" width="120">
         <template #default="{ row }">
           <!-- @click.stop：阻止冒泡，否则点按钮会同时触发整行的跳转 -->
           <el-button size="small" text type="primary" :loading="updatingFingerprint === row.fingerprint" :disabled="Boolean(updatingFingerprint)" @click.stop="toggleStatus(row)">

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { getSession, login as loginRequest, logout as logoutRequest } from '../api/session'
 
-export const currentUser = ref<{ username: string; role: 'admin' | 'viewer'; projectKey: string | null } | null>(null)
+export const currentUser = ref<{ username: string; role: 'admin'; projectKey: string | null } | null>(null)
 export const sessionKnown = ref(false)
 
 export async function signIn(username: string, password: string) {
