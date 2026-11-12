@@ -14,6 +14,7 @@ const config = {
   maxBodyBytes: Number(process.env.MAX_BODY_BYTES ?? 65536),
   reportRateLimit: Number(process.env.REPORT_RATE_LIMIT ?? 120),
   auditRetentionDays: Number(process.env.AUDIT_RETENTION_DAYS ?? 30),
+  trustProxyHttps: process.env.TRUST_PROXY_HTTPS === 'true',
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')
     .map((origin) => origin.trim())

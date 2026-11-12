@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { currentUser, signOut as clearServerSession } from '../stores/session'
 import { notifyError } from '../utils/error'
 import ProjectSelect from '../components/ProjectSelect.vue'
+import FilingFooter from '../components/FilingFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,6 +41,7 @@ async function signOut() {
       <div class="content">
         <router-view />
       </div>
+      <FilingFooter />
     </div>
   </div>
 </template>

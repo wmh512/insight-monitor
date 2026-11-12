@@ -88,3 +88,32 @@ test('登录流程：跨站请求拒绝，失败次数受限', async (t) => {
   const limited = await fetch(`${base}/api/auth/login`, { method: 'POST', body: '{}' })
   assert.equal(limited.status, 429)
 })
+
+test('HTTPS 代理：仅在明确启用且 Nginx 声明 HTTPS 时设置 Secure Cookie', async (t) => {
+  mockAudit(t)
+  resetSessions()
+  const original = { ...config.admin }
+  const originalTrust = config.trustProxyHttps
+  Object.assign(config.admin, { username: 'reviewer', password: 'test-only-password' })
+  config.trustProxyHttps = true
+  const server = createApp()
+  const base = `http://127.0.0.1:${server.address().port}`
+  t.after(() => {
+    Object.assign(config.admin, original)
+    config.trustProxyHttps = originalTrust
+    resetSessions()
+    server.close()
+  })
+
+  const secureLogin = await fetch(`${base}/api/auth/login`, {
+    method: 'POST', headers: { 'X-Forwarded-Proto': 'https' },
+    body: JSON.stringify({ username: 'reviewer', password: 'test-only-password' }),
+  })
+  assert.match(secureLogin.headers.get('set-cookie'), /; Secure/)
+
+  const httpLogin = await fetch(`${base}/api/auth/login`, {
+    method: 'POST', headers: { 'X-Forwarded-Proto': 'http' },
+    body: JSON.stringify({ username: 'reviewer', password: 'test-only-password' }),
+  })
+  assert.doesNotMatch(httpLogin.headers.get('set-cookie'), /; Secure/)
+})
