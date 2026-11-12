@@ -2,7 +2,8 @@
 
 ## 部署与边界
 
-- 作品集保持原有单文件页面与视觉内容，部署于 `/portfolio/`，独立目录为 `/opt/portfolio`。
+- 作品集保持原有单文件页面与视觉内容，独立目录为 `/opt/portfolio`。
+- 正式域名为 `work.wmh512zzj622.cn`；监控后台为 `wmh512zzj622.cn`。
 - Nginx 使用 `location /portfolio/ { alias /opt/portfolio/; index index.html; }`，不影响后台、SDK、校园或商城。
 - 监控脚本使用现有 `/sdk/dist/insight.umd.js` 和 `InsightSDK.init()`，不虚构 PV 或自定义事件 API。
 - 独立 `monitor-config.js` 只在服务器保存上报 token，不进入作品集源代码或公开仓库。
@@ -21,3 +22,10 @@
 - 2026-11-12 作品集页面、Insight 登录、校园与商城健康检查均返回 200。
 - 个人作品集已产生真实性能记录；错误列表为空，不人为制造错误。
 - 当前仅有少量真实样本，不据此宣称性能结论。HTTPS 待域名 DNS 条件就绪后配置。
+
+## 域名与备案
+
+- 两个域名均使用备案号 `冀ICP备2026049028号-1`，链接到 `https://beian.miit.gov.cn/`。
+- DNS 添加 `@` 和 `work` 两条 A 记录，均指向 `114.132.238.83`。
+- 证书签发前保留 HTTP 和原 IP 回退；证书签发后再启用 HTTPS 跳转。
+- 作品集只新增独立、简洁的备案页脚，不改变原有布局与正文。

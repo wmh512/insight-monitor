@@ -42,7 +42,8 @@ function isSameOrigin(ctx) {
 }
 
 function cookie(ctx, value, maxAge) {
-  const secure = ctx.secure ? '; Secure' : ''
+  // Nginx 终止 TLS 时，直接依据其明确写入的协议头；不受 Koa 版本 secure getter 影响。
+  const secure = config.trustProxyHttps && ctx.get('X-Forwarded-Proto') === 'https' ? '; Secure' : ''
   ctx.set('Set-Cookie', `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`)
 }
 

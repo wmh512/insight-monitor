@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { currentUser, restoreSession, signIn, signOut } from '../stores/session'
 import { notifyError } from '../utils/error'
+import FilingFooter from '../components/FilingFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -74,11 +75,12 @@ async function switchAccount() {
       </template>
       <p class="hint">凭证仅用于本次验证，浏览器不会保存明文密码。</p>
     </section>
+    <FilingFooter />
   </main>
 </template>
 
 <style scoped>
-.login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #eef3f8; box-sizing: border-box; }
+.login-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: #eef3f8; box-sizing: border-box; }
 .login-panel { width: min(420px, 100%); padding: 42px; border: 1px solid #e0e7ef; border-radius: 14px; background: #fff; box-shadow: 0 18px 50px #243b5312; box-sizing: border-box; }
 .brand { font-size: 24px; font-weight: 700; color: #102a43; }
 .brand span { color: #1677a3; }
