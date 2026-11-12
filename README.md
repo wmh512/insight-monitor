@@ -24,9 +24,8 @@
 按 `packages/server/.env.example` 配置独立管理员账号；管理密码不进入 admin 或 SDK 构建产物。
 正式部署必须同时启用 HTTPS。
 
-面试展示可配置独立 `viewer` 账号：仅能读取 `VIEWER_PROJECT_KEY` 指定的演示项目，
-不能修改 issue，过期后已有会话也会失效。使用 `docs/demo-viewer-data.sql` 创建虚构脱敏演示数据，
-不得直接开放真实项目。详见 `docs/DEPLOYMENT.md` 的“面试官只读演示”。
+个人作品集已通过现有 SDK 接入独立监控项目，错误与性能数据按项目隔离。
+接入与部署记录见 `docs/PORTFOLIO_MONITORING.md`。
 
 ## 仓库结构
 

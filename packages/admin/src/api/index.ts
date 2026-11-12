@@ -1,24 +1,7 @@
-import axios from 'axios'
-import router from '../router'
-import { clearSession } from '../stores/session'
+import { selectedProject } from '../stores/project'
+import api from './client'
 
-// 开发环境直连本机 API；生产环境默认同源，由 Nginx 将 /api 转发给 Koa。
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
-  timeout: 10000,
-})
-
-// 响应拦截器：成功剥壳、失败统一处理——这是选 axios 不选 fetch 的核心原因
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401 && router.currentRoute.value.name !== 'login') {
-      clearSession()
-      void router.replace({ name: 'login', query: { expired: '1' } })
-    }
-    return Promise.reject(error)
-  },
-)
+export { api }
 
 // ===== 三个查询接口的封装（契约来自 W5-01）=====
 
@@ -51,7 +34,7 @@ export function setIssueStatus(fingerprint: string, status: IssueStatus) {
 
 /** 错误详情（按主键） */
 export function getErrorDetail(id: number) {
-  return api.get(`/api/errors/${id}`)
+  return api.get(`/api/errors/${id}`, { params: { projectKey: selectedProject.value } })
 }
 
 /** 性能记录（图表数据源） */

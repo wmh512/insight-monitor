@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as echarts from 'echarts'
 import { getStats, getPerfList, type PerfRecord } from '../api'
 import { notifyError } from '../utils/error'
+import { selectedProject } from '../stores/project'
 
 interface PerfStats {
   avg_fp: number
@@ -45,23 +46,26 @@ function renderChart(records: PerfRecord[]) {
   })
 }
 
-onMounted(async () => {
+async function load() {
   try {
     // 统计与图表任一失败都保留明确提示，不让页面无声空白。
     const [statsRes, perfRes] = await Promise.all([
-      getStats('demo_project_key_001'),
-      getPerfList({ projectKey: 'demo_project_key_001', pageSize: 50 }),
+      getStats(selectedProject.value),
+      getPerfList({ projectKey: selectedProject.value, pageSize: 50 }),
     ])
     stats.value = statsRes.data.perf
     // stats 控制卡片渲染，等待 Vue 挂载容器后再初始化图表。
     await nextTick()
-    renderChart(perfRes.data.list)
+    if (perfRes.data.list.length) renderChart(perfRes.data.list)
+    else { chart?.dispose(); chart = null }
     window.addEventListener('resize', handleResize)
   } catch (error) {
     loadFailed.value = true
     notifyError(error, '性能数据加载失败')
   }
-})
+}
+onMounted(load)
+watch(selectedProject, load)
 
 // 组件销毁时清理：图表实例和事件监听都要释放（否则内存泄漏 + 报错）
 onUnmounted(() => {

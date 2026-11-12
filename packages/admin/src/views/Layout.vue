@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { currentUser, signOut as clearServerSession } from '../stores/session'
 import { notifyError } from '../utils/error'
+import ProjectSelect from '../components/ProjectSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,9 +36,8 @@ async function signOut() {
       </el-menu>
     </aside>
     <div class="main">
-      <header class="header"><span>监控后台</span><div class="account"><el-tag v-if="currentUser?.role === 'viewer'" type="info">只读演示</el-tag><el-button text @click="signOut">退出登录</el-button></div></header>
+      <header class="header"><span>监控后台</span><div class="account"><ProjectSelect /><el-button text @click="signOut">退出登录</el-button></div></header>
       <div class="content">
-        <el-alert v-if="currentUser?.role === 'viewer'" title="当前为只读演示账号，可查看错误和性能数据，不能修改状态。" type="info" :closable="false" show-icon class="viewer-notice" />
         <router-view />
       </div>
     </div>
@@ -52,5 +52,4 @@ async function signOut() {
 .header { height: 60px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 18px; }
 .content { padding: 24px; flex: 1; overflow: auto; }
 .account { display: flex; align-items: center; gap: 12px; }
-.viewer-notice { margin-bottom: 16px; }
 </style>

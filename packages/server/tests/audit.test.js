@@ -39,31 +39,28 @@ test('访问记录：成功、失败、退出均记录，且不保存密码和�
   assert.equal(serialized.includes(cookie), false)
 })
 
-test('审计查询：仅管理员可访问，viewer 与匿名用户均被拒绝', async (t) => {
+test('审计查询：仅管理员可访问，匿名用户被拒绝', async (t) => {
   resetSessions()
-  const originals = { admin: { ...config.admin }, viewer: { ...config.viewer } }
+  const originals = { ...config.admin }
   Object.assign(config.admin, { username: 'admin', password: 'test-only-password' })
-  Object.assign(config.viewer, { username: 'viewer', password: 'viewer-password', projectKey: 'demo', expiresAt: Date.now() + 60000 })
   const queries = mockDatabase(t)
   const app = new Koa()
   app.use(queryRouter.routes())
   const server = app.listen(0)
-  t.after(() => { Object.assign(config.admin, originals.admin); Object.assign(config.viewer, originals.viewer); resetSessions(); server.close() })
+  t.after(() => { Object.assign(config.admin, originals); resetSessions(); server.close() })
   const base = `http://127.0.0.1:${server.address().port}`
   async function signIn(username, password) {
     const response = await fetch(`${base}/api/auth/login`, { method: 'POST', body: JSON.stringify({ username, password }) })
     return response.headers.get('set-cookie').split(';')[0]
   }
   const adminCookie = await signIn('admin', 'test-only-password')
-  const viewerCookie = await signIn('viewer', 'viewer-password')
   for (const path of ['/api/audit/login', '/api/audit/operations']) {
     assert.equal((await fetch(`${base}${path}`)).status, 401)
-    assert.equal((await fetch(`${base}${path}`, { headers: { Cookie: viewerCookie } })).status, 403)
     assert.equal((await fetch(`${base}${path}?username=admin&eventType=login&result=success&ip=127.0.0.1`, { headers: { Cookie: adminCookie } })).status, 200)
   }
   const listQueries = queries.filter((item) => item.sql.includes('FROM audit_logs WHERE'))
   assert.equal(listQueries.length, 4)
-  assert.equal(listQueries.every((item) => item.params.includes('demo') === false), true)
+  assert.equal(listQueries.length > 0, true)
 })
 
 test('错误状态修改：成功与对象不存在均写入操作审计', async (t) => {

@@ -49,13 +49,7 @@ function cookie(ctx, value, maxAge) {
 function activeAccount(username, password) {
   const adminValid = config.admin.username && config.admin.password &&
     safeEqual(username, config.admin.username) && safeEqual(password, config.admin.password)
-  if (adminValid) return { username, role: 'admin', projectKey: null, expiresAt: 0 }
-  const viewer = config.viewer
-  const viewerValid = viewer.username && viewer.password && viewer.projectKey && viewer.expiresAt > Date.now() &&
-    safeEqual(username, viewer.username) && safeEqual(password, viewer.password)
-  return viewerValid
-    ? { username, role: 'viewer', projectKey: viewer.projectKey, expiresAt: viewer.expiresAt }
-    : null
+  return adminValid ? { username, role: 'admin', projectKey: null, expiresAt: 0 } : null
 }
 
 export function createSessionAuth({ now = () => Date.now() } = {}) {
@@ -69,8 +63,7 @@ export function createSessionAuth({ now = () => Date.now() } = {}) {
       ctx.body = { code: 401, message: '登录已失效，请重新登录' }
       return
     }
-    // viewer 的过期时间由独立凭证决定，不能因为滑动续期而越过截止时间。
-    session.expiresAt = Math.min(now() + SESSION_TTL_SECONDS * 1000, session.accountExpiresAt || Infinity)
+    session.expiresAt = now() + SESSION_TTL_SECONDS * 1000
     ctx.state.adminUsername = session.username
     ctx.state.role = session.role
     ctx.state.projectKey = session.projectKey
@@ -88,11 +81,6 @@ export function requireAdmin(ctx, next) {
 }
 
 export function requireProjectAccess(ctx, next) {
-  if (ctx.state.role === 'viewer' && ctx.query.projectKey !== ctx.state.projectKey) {
-    ctx.status = 403
-    ctx.body = { code: 403, message: '只读演示账号无权访问该项目' }
-    return
-  }
   return next()
 }
 

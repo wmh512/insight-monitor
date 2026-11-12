@@ -1,6 +1,14 @@
 import config from '../config.js'
+import { timingSafeEqual } from 'node:crypto'
 import { getRawBody } from '../utils/rawBody.js'
 export { adminAuth } from './session.js'
+
+function tokenMatches(actual, expected) {
+  if (typeof actual !== 'string' || typeof expected !== 'string') return false
+  const left = Buffer.from(actual)
+  const right = Buffer.from(expected)
+  return left.length === right.length && timingSafeEqual(left, right)
+}
 /**
  * 上报接口鉴权 + 请求体解析（W9-a）
  *
@@ -29,8 +37,20 @@ export async function reportAuth(ctx, next) {
     return
   }
 
-  // fail closed：服务端没配 token = 谁都不许报（防止忘配变裸奔）
-  if (!config.reportToken || parsed.token !== config.reportToken) {
+  const projectId = Array.isArray(parsed.data) ? parsed.data[0]?.projectId : ''
+  let projectTokens = {}
+  try {
+    const parsedTokens = JSON.parse(config.reportTokens || '{}')
+    if (!parsedTokens || typeof parsedTokens !== 'object' || Array.isArray(parsedTokens)) throw new Error('Invalid token map')
+    projectTokens = parsedTokens
+  } catch {
+    ctx.status = 500
+    ctx.body = { code: 500, message: '上报凭证配置错误' }
+    return
+  }
+  // 项目独立 token 优先，未配置的项目兼容旧全局 token。
+  const expectedToken = projectTokens[projectId] ?? config.reportToken
+  if (!expectedToken || !tokenMatches(parsed.token, expectedToken)) {
     ctx.status = 401
     ctx.body = { code: 401, message: '无效的上报令牌' }
     return
@@ -38,6 +58,6 @@ export async function reportAuth(ctx, next) {
 
   // 校验通过，把数据交给控制器
   ctx.state.reportData = parsed.data
-  ctx.state.reportProjectId = Array.isArray(parsed.data) ? parsed.data[0]?.projectId : ''
+  ctx.state.reportProjectId = projectId
   await next()
 }
